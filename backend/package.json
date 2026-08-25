@@ -8,6 +8,7 @@
     "dev": "tsx watch src/server.ts",
     "build": "rimraf dist && tsc",
     "start": "node dist/server.js",
+    "test:connections": "tsx src/scripts/test-connections.ts",
     "clean": "rimraf dist"
   },
   "dependencies": {

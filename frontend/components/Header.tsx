@@ -1,4 +1,5 @@
 import React from 'react';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Header() {
   return (
@@ -8,8 +9,11 @@ export function Header() {
           <div className="logo-icon">EA</div>
           <span className="logo-text">Exam & Academic Assistant</span>
         </a>
-        <div className="header-badge">
-          <span>Foundation Phase v0.1.0</span>
+        <div className="header-actions">
+          <div className="header-badge">
+            <span>Foundation Phase v0.1.0</span>
+          </div>
+          <ThemeToggle />
         </div>
       </div>
     </header>

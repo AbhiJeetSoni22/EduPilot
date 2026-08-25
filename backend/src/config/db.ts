@@ -1,6 +1,14 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
 import { config } from './env';
 import { logger } from '../utils/logger';
+
+// Configure DNS fallback for Atlas SRV resolution
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
+} catch {
+  // Ignore in restricted environments
+}
 
 export async function connectDatabase(): Promise<typeof mongoose | null> {
   try {

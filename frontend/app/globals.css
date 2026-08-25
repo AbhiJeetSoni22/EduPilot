@@ -1,17 +1,58 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
-:root {
+/* ==========================================================================
+   Design Tokens & Themes
+   ========================================================================== */
+
+:root,
+[data-theme='dark'] {
+  /* Surface & Background */
   --bg-primary: #090d16;
   --bg-secondary: #0f172a;
   --bg-card: rgba(15, 23, 42, 0.65);
   --bg-card-hover: rgba(30, 41, 59, 0.85);
+  --bg-stat: rgba(255, 255, 255, 0.02);
+  --bg-stat-border: rgba(255, 255, 255, 0.04);
+  --header-bg: rgba(9, 13, 22, 0.75);
+  --footer-bg: rgba(9, 13, 22, 0.9);
+  
+  /* Borders & Dividers */
   --border-color: rgba(255, 255, 255, 0.08);
   --border-highlight: rgba(99, 102, 241, 0.3);
   
+  /* Typography */
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --text-muted: #64748b;
+  --text-logo: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
   
+  /* Components & Badges */
+  --hero-pill-bg: rgba(255, 255, 255, 0.04);
+  --hero-pill-border: rgba(255, 255, 255, 0.08);
+  --hero-pill-text: #94a3b8;
+  
+  --badge-bg: rgba(99, 102, 241, 0.1);
+  --badge-border: rgba(99, 102, 241, 0.3);
+  --badge-text: #c7d2fe;
+  
+  --feature-tag-bg: rgba(255, 255, 255, 0.05);
+  --feature-tag-text: #94a3b8;
+  --feature-icon-bg: rgba(99, 102, 241, 0.1);
+  --feature-icon-border: rgba(99, 102, 241, 0.3);
+
+  --arch-node-bg: rgba(255, 255, 255, 0.03);
+  --arch-node-border: rgba(255, 255, 255, 0.08);
+
+  --btn-control-bg: rgba(255, 255, 255, 0.05);
+  --btn-control-bg-hover: rgba(255, 255, 255, 0.1);
+  --btn-control-border: rgba(255, 255, 255, 0.08);
+  --btn-control-text: #94a3b8;
+
+  /* Shadows */
+  --card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  --card-shadow-hover: 0 12px 30px -10px rgba(0, 0, 0, 0.4);
+
+  /* Accents & Status */
   --accent-primary: #6366f1;
   --accent-primary-hover: #4f46e5;
   --accent-secondary: #8b5cf6;
@@ -20,10 +61,13 @@
   --accent-amber: #f59e0b;
   --accent-rose: #f43f5e;
 
+  /* Gradients */
   --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
-  --gradient-card: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
-  --gradient-glow: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+  --bg-gradient-body: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.18), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 60%, rgba(139, 92, 246, 0.08), transparent);
 
+  /* Shared Properties */
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
@@ -32,6 +76,73 @@
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
+
+[data-theme='light'] {
+  /* Surface & Background */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-card-hover: rgba(255, 255, 255, 0.98);
+  --bg-stat: rgba(241, 245, 249, 0.85);
+  --bg-stat-border: rgba(226, 232, 240, 0.9);
+  --header-bg: rgba(248, 250, 252, 0.82);
+  --footer-bg: rgba(241, 245, 249, 0.85);
+  
+  /* Borders & Dividers */
+  --border-color: rgba(226, 232, 240, 0.95);
+  --border-highlight: rgba(99, 102, 241, 0.25);
+  
+  /* Typography */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-logo: linear-gradient(180deg, #0f172a 0%, #334155 100%);
+  
+  /* Components & Badges */
+  --hero-pill-bg: rgba(99, 102, 241, 0.06);
+  --hero-pill-border: rgba(99, 102, 241, 0.18);
+  --hero-pill-text: #4f46e5;
+  
+  --badge-bg: rgba(99, 102, 241, 0.08);
+  --badge-border: rgba(99, 102, 241, 0.2);
+  --badge-text: #4338ca;
+  
+  --feature-tag-bg: rgba(241, 245, 249, 0.9);
+  --feature-tag-text: #64748b;
+  --feature-icon-bg: rgba(99, 102, 241, 0.08);
+  --feature-icon-border: rgba(99, 102, 241, 0.2);
+
+  --arch-node-bg: rgba(241, 245, 249, 0.8);
+  --arch-node-border: rgba(203, 213, 225, 0.8);
+
+  --btn-control-bg: rgba(241, 245, 249, 0.95);
+  --btn-control-bg-hover: rgba(226, 232, 240, 1);
+  --btn-control-border: rgba(203, 213, 225, 0.8);
+  --btn-control-text: #334155;
+
+  /* Shadows */
+  --card-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04);
+  --card-shadow-hover: 0 16px 36px -10px rgba(99, 102, 241, 0.14), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+
+  /* Accents & Status */
+  --accent-primary: #6366f1;
+  --accent-primary-hover: #4f46e5;
+  --accent-secondary: #8b5cf6;
+  --accent-cyan: #0891b2;
+  --accent-emerald: #059669;
+  --accent-amber: #d97706;
+  --accent-rose: #e11d48;
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #c026d3 100%);
+  --bg-gradient-body: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.09), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 60%, rgba(139, 92, 246, 0.05), transparent);
+}
+
+/* ==========================================================================
+   Global Reset & Base Layout
+   ========================================================================== */
 
 * {
   box-sizing: border-box;
@@ -48,15 +159,15 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-image: 
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.18), transparent),
-    radial-gradient(ellipse 60% 40% at 100% 60%, rgba(139, 92, 246, 0.08), transparent);
+  background-image: var(--bg-gradient-body);
 }
 
 /* Layout Utilities */
@@ -67,22 +178,27 @@ body {
   padding: 0 1.5rem;
 }
 
-/* Header */
+/* ==========================================================================
+   Header & Navigation
+   ========================================================================== */
+
 .header {
   position: sticky;
   top: 0;
   z-index: 50;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  background: rgba(9, 13, 22, 0.75);
+  background: var(--header-bg);
   border-bottom: 1px solid var(--border-color);
-  padding: 1rem 0;
+  padding: 0.85rem 0;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .header-content {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 1rem;
 }
 
 .logo-group {
@@ -103,17 +219,25 @@ body {
   justify-content: center;
   font-weight: 800;
   font-size: 1.1rem;
-  color: #fff;
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
+  flex-shrink: 0;
 }
 
 .logo-text {
   font-weight: 700;
   font-size: 1.125rem;
   letter-spacing: -0.02em;
-  background: linear-gradient(180deg, #fff 0%, #cbd5e1 100%);
+  background: var(--text-logo);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  transition: all 0.25s ease;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .header-badge {
@@ -124,12 +248,97 @@ body {
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 600;
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid var(--border-highlight);
-  color: #c7d2fe;
+  background: var(--badge-bg);
+  border: 1px solid var(--badge-border);
+  color: var(--badge-text);
+  white-space: nowrap;
+  transition: all 0.25s ease;
 }
 
-/* Hero Section */
+/* ==========================================================================
+   Theme Toggle Control
+   ========================================================================== */
+
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.32rem 0.75rem;
+  border-radius: 9999px;
+  background: var(--btn-control-bg);
+  border: 1px solid var(--btn-control-border);
+  color: var(--btn-control-text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.theme-toggle-btn:hover {
+  background: var(--btn-control-bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-highlight);
+  transform: translateY(-1px);
+}
+
+.theme-toggle-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
+}
+
+.theme-toggle-track {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-icon-wrapper {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.6) rotate(-45deg);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
+}
+
+.theme-icon-wrapper.active {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.theme-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.moon-icon {
+  color: #cbd5e1;
+}
+
+[data-theme='light'] .moon-icon {
+  color: #475569;
+}
+
+.sun-icon {
+  color: #f59e0b;
+}
+
+.theme-toggle-label {
+  letter-spacing: 0.02em;
+}
+
+/* ==========================================================================
+   Hero Section
+   ========================================================================== */
+
 .hero {
   padding: 4.5rem 0 3rem;
   text-align: center;
@@ -144,10 +353,11 @@ body {
   border-radius: 9999px;
   font-size: 0.825rem;
   font-weight: 500;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  background: var(--hero-pill-bg);
+  border: 1px solid var(--hero-pill-border);
+  color: var(--hero-pill-text);
   margin-bottom: 1.5rem;
+  transition: all 0.25s ease;
 }
 
 .hero-title {
@@ -156,6 +366,7 @@ body {
   line-height: 1.15;
   letter-spacing: -0.03em;
   margin-bottom: 1.25rem;
+  color: var(--text-primary);
 }
 
 .hero-gradient-text {
@@ -170,9 +381,13 @@ body {
   max-width: 680px;
   margin: 0 auto 2.5rem;
   line-height: 1.6;
+  transition: color 0.25s ease;
 }
 
-/* Health Widget Card */
+/* ==========================================================================
+   Health Widget Card
+   ========================================================================== */
+
 .health-card {
   max-width: 600px;
   margin: 0 auto 3.5rem;
@@ -182,8 +397,9 @@ body {
   padding: 1.5rem;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--card-shadow);
   text-align: left;
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .health-card-header {
@@ -193,6 +409,7 @@ body {
   margin-bottom: 1.25rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--border-color);
+  transition: border-color 0.25s ease;
 }
 
 .health-card-title {
@@ -205,9 +422,9 @@ body {
 }
 
 .refresh-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  background: var(--btn-control-bg);
+  border: 1px solid var(--btn-control-border);
+  color: var(--btn-control-text);
   padding: 0.35rem 0.75rem;
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
@@ -215,11 +432,17 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
+  outline: none;
 }
 
 .refresh-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--btn-control-bg-hover);
   color: var(--text-primary);
+  border-color: var(--border-highlight);
+}
+
+.refresh-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-primary);
 }
 
 .health-grid {
@@ -229,10 +452,11 @@ body {
 }
 
 .health-stat {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: var(--bg-stat);
+  border: 1px solid var(--bg-stat-border);
   border-radius: var(--radius-sm);
   padding: 0.75rem;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .health-stat-label {
@@ -250,6 +474,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+  color: var(--text-primary);
 }
 
 .status-dot {
@@ -257,6 +482,7 @@ body {
   height: 8px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 
 .status-dot.ok {
@@ -274,7 +500,10 @@ body {
   box-shadow: 0 0 10px var(--accent-rose);
 }
 
-/* Feature Grid */
+/* ==========================================================================
+   Feature Grid Section
+   ========================================================================== */
+
 .features-section {
   padding: 2rem 0 5rem;
 }
@@ -298,6 +527,7 @@ body {
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-primary);
+  transition: color 0.25s ease;
 }
 
 .feature-cards-grid {
@@ -311,9 +541,10 @@ body {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 1.75rem;
-  transition: all 0.25s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+  box-shadow: var(--card-shadow);
 }
 
 .feature-card::before {
@@ -332,7 +563,7 @@ body {
   background: var(--bg-card-hover);
   border-color: var(--border-highlight);
   transform: translateY(-3px);
-  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--card-shadow-hover);
 }
 
 .feature-card:hover::before {
@@ -343,13 +574,14 @@ body {
   width: 44px;
   height: 44px;
   border-radius: var(--radius-sm);
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px solid var(--border-highlight);
+  background: var(--feature-icon-bg);
+  border: 1px solid var(--feature-icon-border);
   display: flex;
   align-items: center;
   justify-content: center;
   margin-bottom: 1.25rem;
   font-size: 1.25rem;
+  transition: all 0.25s ease;
 }
 
 .feature-card-title {
@@ -357,6 +589,7 @@ body {
   font-weight: 700;
   margin-bottom: 0.5rem;
   color: var(--text-primary);
+  transition: color 0.25s ease;
 }
 
 .feature-card-desc {
@@ -364,6 +597,7 @@ body {
   color: var(--text-secondary);
   line-height: 1.6;
   margin-bottom: 1.25rem;
+  transition: color 0.25s ease;
 }
 
 .feature-card-status {
@@ -374,17 +608,23 @@ body {
   font-weight: 600;
   padding: 0.25rem 0.6rem;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-muted);
+  background: var(--feature-tag-bg);
+  color: var(--feature-tag-text);
+  transition: all 0.25s ease;
 }
 
-/* Architecture Flow Preview */
+/* ==========================================================================
+   Architecture Flow Preview
+   ========================================================================== */
+
 .arch-preview {
   margin: 3rem 0;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 2rem;
+  box-shadow: var(--card-shadow);
+  transition: all 0.25s ease;
 }
 
 .arch-flow {
@@ -397,13 +637,15 @@ body {
 }
 
 .arch-node {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-color);
+  background: var(--arch-node-bg);
+  border: 1px solid var(--arch-node-border);
   border-radius: var(--radius-sm);
   padding: 0.75rem 1.25rem;
   text-align: center;
   font-size: 0.85rem;
   font-weight: 600;
+  color: var(--text-primary);
+  transition: all 0.25s ease;
 }
 
 .arch-node span {
@@ -417,14 +659,19 @@ body {
 .arch-arrow {
   color: var(--accent-primary);
   font-size: 1.2rem;
+  font-weight: bold;
 }
 
-/* Footer */
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+
 .footer {
   margin-top: auto;
   border-top: 1px solid var(--border-color);
   padding: 2rem 0;
-  background: rgba(9, 13, 22, 0.9);
+  background: var(--footer-bg);
+  transition: background-color 0.25s ease, border-color 0.25s ease;
 }
 
 .footer-content {
@@ -450,4 +697,28 @@ body {
 
 .footer-link:hover {
   color: var(--accent-primary);
+}
+
+/* ==========================================================================
+   Responsive Adjustments
+   ========================================================================== */
+
+@media (max-width: 640px) {
+  .header-content {
+    flex-wrap: wrap;
+  }
+  
+  .header-actions {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+  }
+
+  .hero {
+    padding: 3rem 0 2rem;
+  }
+
+  .feature-cards-grid {
+    grid-template-columns: 1fr;
+  }
 }
