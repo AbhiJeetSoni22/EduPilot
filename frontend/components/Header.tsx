@@ -2,10 +2,12 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { ThemeToggle } from './ThemeToggle';
 
 export function Header() {
+  const pathname = usePathname();
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   return (
@@ -16,7 +18,10 @@ export function Header() {
           <span className="logo-text">EduPilot</span>
         </Link>
         <div className="header-actions">
-          <Link href="/" className="header-nav-link">
+          <Link
+            href="/"
+            className={`header-nav-link ${pathname === '/' ? 'active' : ''}`}
+          >
             Home
           </Link>
           
