@@ -22,3 +22,4 @@ export interface ApiErrorResponse {
 }
 
 export * from './query-context';
+export * from './query-analysis.types';

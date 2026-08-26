@@ -13,138 +13,203 @@ http://localhost:5000/api
 
 | Access Level | Description | Header Required |
 | :--- | :--- | :--- |
-| **Public** | Read-only endpoints for curriculum, exam schedules, regulations, and system health. Open to students and all clients. | None |
+| **Public** | Read-only endpoints for curriculum, exam schedules, regulations, system health, and student conversational chat. Open to all clients without authentication. | None |
 | **Admin Protected** | Operations that create, modify, delete, or bulk-import academic records and documents. Requires verified Administrator JWT. | `Authorization: Bearer <Admin_JWT>` |
-| **Future / Internal** | AI orchestration, conversational routing, and vector search endpoints (Phase 3 & Phase 4). | Internal backend invocation |
+| **Future / Internal** | Semantic PDF chunking and vector index operations (Phase 4). | Internal backend invocation |
 
 ---
 
-## 2. System & Health Endpoints
+## 2. Conversational AI Chat Endpoints (Phase 3 Active)
 
-### System Health Check
-- **Endpoint**: `GET /api/health`
+### Send Chat Query
+- **Endpoint**: `POST /api/chat`
+- **Access Level**: **Public** (No student authentication required)
+- **Description**: Submits a natural language query with optional conversation session ID and query context. Runs Gemini Query Analysis, context resolution, strategy routing, and returns a grounded response.
+- **Request Body**:
+```json
+{
+  "message": "When is the DBMS exam for CSE semester 5?",
+  "conversationId": "conv_4a8b-1234",
+  "queryContext": {
+    "department": "CSE",
+    "semester": 5
+  }
+}
+```
+
+- **Response `200 OK` (Answer Ready)**:
+```json
+{
+  "success": true,
+  "data": {
+    "status": "answer_ready",
+    "conversationId": "conv_4a8b-1234",
+    "queryAnalysis": {
+      "intent": "exam_schedule",
+      "entities": {
+        "subject": "DBMS",
+        "department": "CSE",
+        "semester": 5
+      },
+      "requiredContext": ["department", "semester"],
+      "providedContext": ["department", "semester"],
+      "missingContext": [],
+      "retrievalStrategy": "structured",
+      "confidenceScore": 0.95,
+      "reasoningSummary": "Exam schedule query with complete cohort context."
+    },
+    "response": "📝 **Upcoming Examination Timetable (CSE Sem 5)**\n\n• **CS501 Database Management Systems**\n  📅 Mon, Oct 20, 2025 | ⏰ 09:30 AM - 12:30 PM\n  📍 Venue: Hall A-102 | Shift: Morning"
+  },
+  "message": "Query processed successfully"
+}
+```
+
+- **Response `200 OK` (Needs Context / Clarification)**:
+```json
+{
+  "success": true,
+  "data": {
+    "status": "needs_context",
+    "conversationId": "conv_4a8b-1234",
+    "queryAnalysis": {
+      "intent": "exam_schedule",
+      "entities": {},
+      "requiredContext": ["department", "semester"],
+      "providedContext": [],
+      "missingContext": ["department", "semester"],
+      "retrievalStrategy": "clarification",
+      "clarificationPrompt": "Please provide your department and semester (e.g. CSE semester 5) to check your exam schedule."
+    },
+    "response": "To check the correct examination timetable, could you please specify your **department** and **semester** (for example: *CSE, Semester 5*)?",
+    "missingContext": ["department", "semester"]
+  },
+  "message": "Query processed successfully"
+}
+```
+
+### Retrieve Conversation Thread
+- **Endpoint**: `GET /api/chat/:id`
 - **Access Level**: **Public**
-- **Description**: Returns server uptime, version, and MongoDB connection status.
+- **Description**: Returns message history and accumulated `queryContext` for an active session.
 - **Response `200 OK`**:
 ```json
 {
-  "status": "ok",
-  "service": "Exam & Academic Assistant API",
-  "version": "0.1.0",
-  "timestamp": "2026-08-26T12:00:00.000Z",
-  "uptime": 124.5,
-  "environment": "development",
-  "database": {
-    "status": "connected",
-    "host": "cluster0.mongodb.net",
-    "name": "exam_academic_assistant"
+  "success": true,
+  "data": {
+    "conversationId": "conv_4a8b-1234",
+    "messages": [
+      {
+        "role": "user",
+        "content": "When is my next exam?",
+        "timestamp": "2026-08-26T12:00:00.000Z"
+      },
+      {
+        "role": "assistant",
+        "content": "Please specify your department and semester (e.g. CSE semester 5).",
+        "timestamp": "2026-08-26T12:00:01.000Z"
+      }
+    ],
+    "queryContext": {
+      "department": "CSE",
+      "semester": 5
+    },
+    "lastActiveAt": "2026-08-26T12:00:01.000Z"
   }
 }
 ```
 
 ---
 
-## 3. Authentication & User Management Endpoints
+## 3. System & Health Endpoints
+
+### System Health Check
+- **Endpoint**: `GET /api/health`
+- **Access Level**: **Public**
+- **Description**: Returns server uptime, version, and MongoDB connection status.
+
+---
+
+## 4. Authentication & Admin User Management
 
 ### Admin Login
 - **Endpoint**: `POST /api/auth/login`
 - **Access Level**: **Public**
 - **Description**: Authenticates administrator credentials and returns an Admin JWT session token.
-- **Request Body**:
-```json
-{
-  "email": "admin@edupilot.edu",
-  "password": "Admin@123456"
-}
-```
-- **Response `200 OK`**: Returns user profile and `token`.
 
 ### Get Current Admin Profile
 - **Endpoint**: `GET /api/auth/me`
 - **Access Level**: **Admin Protected**
-- **Description**: Returns profile details for the currently authenticated administrator.
 
 ### Admin User Management
-- `GET /api/users` — **Admin Protected** (List staff/admin accounts with optional role filter)
-- `GET /api/users/:id` — **Admin Protected** (Get specific user details)
-- `PUT /api/users/:id` — **Admin Protected** (Update user role/status)
-- `DELETE /api/users/:id` — **Admin Protected** (Deactivate/delete user)
+- `GET /api/users` — **Admin Protected**
+- `GET /api/users/:id` — **Admin Protected**
+- `PUT /api/users/:id` — **Admin Protected**
+- `DELETE /api/users/:id` — **Admin Protected**
 
 ---
 
-## 4. Academic Catalog & Structured Endpoints
+## 5. Academic Catalog & Structured Endpoints
 
 ### Departments
-- `GET /api/departments` — **Public** (List academic departments)
-- `GET /api/departments/:id` — **Public** (Get single department details)
-- `POST /api/departments` — **Admin Protected** (Create department)
-- `PUT /api/departments/:id` — **Admin Protected** (Update department)
-- `DELETE /api/departments/:id` — **Admin Protected** (Delete department)
+- `GET /api/departments` — **Public**
+- `GET /api/departments/:id` — **Public**
+- `POST /api/departments` — **Admin Protected**
+- `PUT /api/departments/:id` — **Admin Protected**
+- `DELETE /api/departments/:id` — **Admin Protected**
 
 ### Academic Programs
-- `GET /api/programs` — **Public** (List programs, filterable by `?department=`)
-- `GET /api/programs/:id` — **Public** (Get single program details)
-- `POST /api/programs` — **Admin Protected** (Create program)
-- `PUT /api/programs/:id` — **Admin Protected** (Update program)
-- `DELETE /api/programs/:id` — **Admin Protected** (Delete program)
+- `GET /api/programs` — **Public**
+- `GET /api/programs/:id` — **Public**
+- `POST /api/programs` — **Admin Protected**
+- `PUT /api/programs/:id` — **Admin Protected**
+- `DELETE /api/programs/:id` — **Admin Protected**
 
 ### Subjects & Courses
-- `GET /api/subjects` — **Public** (List subjects, filterable by `?department=`, `?program=`, `?semester=`, `?code=`)
-- `GET /api/subjects/:id` — **Public** (Get subject details, syllabus units, textbooks, evaluation schema)
-- `POST /api/subjects` — **Admin Protected** (Create subject)
-- `PUT /api/subjects/:id` — **Admin Protected** (Update subject)
-- `DELETE /api/subjects/:id` — **Admin Protected** (Delete subject)
+- `GET /api/subjects` — **Public**
+- `GET /api/subjects/:id` — **Public**
+- `POST /api/subjects` — **Admin Protected**
+- `PUT /api/subjects/:id` — **Admin Protected**
+- `DELETE /api/subjects/:id` — **Admin Protected**
 
 ### Scheduled Examinations
-- `GET /api/exams` — **Public** (List exams, filterable by `?department=`, `?program=`, `?semester=`, `?subject=`, `?examType=`)
-- `GET /api/exams/:id` — **Public** (Get examination details, date, shift, venue, instructions)
-- `POST /api/exams` — **Admin Protected** (Schedule exam)
-- `PUT /api/exams/:id` — **Admin Protected** (Update exam schedule)
-- `DELETE /api/exams/:id` — **Admin Protected** (Cancel/delete exam)
+- `GET /api/exams` — **Public**
+- `GET /api/exams/:id` — **Public**
+- `POST /api/exams` — **Admin Protected**
+- `PUT /api/exams/:id` — **Admin Protected**
+- `DELETE /api/exams/:id` — **Admin Protected**
 
 ### Assignments & Deadlines
-- `GET /api/assignments` — **Public** (List assignments, filterable by `?subject=`, `?semester=`, `?status=`)
-- `GET /api/assignments/:id` — **Public** (Get assignment guidelines, rubric, deadline)
-- `POST /api/assignments` — **Admin Protected** (Create assignment)
-- `PUT /api/assignments/:id` — **Admin Protected** (Update assignment)
-- `DELETE /api/assignments/:id` — **Admin Protected** (Delete assignment)
+- `GET /api/assignments` — **Public**
+- `GET /api/assignments/:id` — **Public**
+- `POST /api/assignments` — **Admin Protected**
+- `PUT /api/assignments/:id` — **Admin Protected**
+- `DELETE /api/assignments/:id` — **Admin Protected**
 
 ### Academic Calendar Events
-- `GET /api/academic-calendar` — **Public** (List calendar milestones, holidays, term dates)
-- `GET /api/academic-calendar/:id` — **Public** (Get calendar event details)
-- `POST /api/academic-calendar` — **Admin Protected** (Create calendar milestone)
-- `PUT /api/academic-calendar/:id` — **Admin Protected** (Update calendar event)
-- `DELETE /api/academic-calendar/:id` — **Admin Protected** (Delete calendar event)
+- `GET /api/academic-calendar` — **Public**
+- `GET /api/academic-calendar/:id` — **Public**
+- `POST /api/academic-calendar` — **Admin Protected**
+- `PUT /api/academic-calendar/:id` — **Admin Protected**
+- `DELETE /api/academic-calendar/:id` — **Admin Protected**
 
 ### Institutional Regulations
-- `GET /api/regulations` — **Public** (List academic regulations, filterable by `?category=`)
-- `GET /api/regulations/:id` — **Public** (Get regulation clauses, attendance rules, GPA formulas)
-- `POST /api/regulations` — **Admin Protected** (Publish regulation)
-- `PUT /api/regulations/:id` — **Admin Protected** (Update regulation)
-- `DELETE /api/regulations/:id` — **Admin Protected** (Archive regulation)
+- `GET /api/regulations` — **Public**
+- `GET /api/regulations/:id` — **Public**
+- `POST /api/regulations` — **Admin Protected**
+- `PUT /api/regulations/:id` — **Admin Protected**
+- `DELETE /api/regulations/:id` — **Admin Protected**
 
 ---
 
-## 5. Knowledge Base & Batch Operations
+## 6. Knowledge Base & Batch Operations
 
 ### Document Management (Knowledge Base)
-- `GET /api/documents` — **Public** (List available institutional PDFs, circulars, handbooks)
-- `GET /api/documents/:id` — **Public** (Get document metadata and indexing status)
-- `GET /api/documents/:id/download` — **Public** (Download official academic PDF file)
-- `POST /api/documents/upload` — **Admin Protected** (Upload PDF document with category & metadata)
-- `DELETE /api/documents/:id` — **Admin Protected** (Remove document from Knowledge Base)
+- `GET /api/documents` — **Public**
+- `GET /api/documents/:id` — **Public**
+- `GET /api/documents/:id/download` — **Public**
+- `POST /api/documents/upload` — **Admin Protected**
+- `DELETE /api/documents/:id` — **Admin Protected**
 
 ### Bulk Data Import
-- `POST /api/bulk-import/validate` — **Admin Protected** (Upload CSV/JSON file to parse and validate rows without persisting)
-- `POST /api/bulk-import/confirm` — **Admin Protected** (Commit validated batch records into MongoDB)
-
----
-
-## 6. Planned AI & Chatbot Endpoints *(Phase 3 & Phase 4)*
-
-> [!NOTE]
-> The endpoints below represent the planned conversational interface for Phase 3.
-
-- `POST /api/chat/query` — **Public** (Send natural language query + optional `QueryContext` payload, execute Gemini intent routing, retrieve grounded DB/RAG records, and return AI response)
-- `GET /api/chat/session/:id` — **Public / Session-Based** (Retrieve recent multi-turn messages for an active browser session)
-- `POST /api/chat/feedback` — **Public** (Submit helpful/unhelpful rating on assistant answers)
+- `POST /api/bulk-import/validate` — **Admin Protected**
+- `POST /api/bulk-import/confirm` — **Admin Protected**

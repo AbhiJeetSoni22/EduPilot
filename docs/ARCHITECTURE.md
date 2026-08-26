@@ -8,7 +8,7 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
 
 ```text
 ========================================================================================
-1. PUBLIC STUDENT / USER PATHWAY (Zero Authentication, Open Academic Discovery)
+1. CONVERSATIONAL AI & CHATBOT PATHWAY (Phase 3 Implemented Architecture)
 ========================================================================================
 
    Student / Public User
@@ -16,32 +16,31 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
             ▼
      EduPilot Chat UI (No login / registration required)
             │
-            │ HTTPS (Natural Language Query + Optional QueryContext)
+            │ POST /api/chat { message, conversationId?, queryContext? }
             ▼
   [Backend Node.js Orchestrator]
             │
-            ▼
-  [Gemini Question Understanding]
-     - Intent Classification
-     - Entity Extraction (Subject, Date, Exam)
-     - Missing Context Detection
+            ├─► 1. Session & Context Resolution (ConversationService)
+            │       - Retrieve active session by conversationId
+            │       - Merge existing session context with incoming queryContext
             │
-            ├─► If Context Missing: Prompt User Conversationally (e.g. "Which semester?")
+            ├─► 2. AI Query Analyzer (QueryAnalyzerService)
+            │       - System Instruction & Few-Shot Prompts
+            │       - Gemini structured JSON output (temperature=0.05)
+            │       - Schema Validation & Normalization
+            │       - Output: Strongly typed QueryAnalysis
             │
-            ▼
-     Optional Query Context ({ department?, program?, semester?, academicYear? })
+            ├─► 3. Strategy Routing & Execution (OrchestratorService)
+            │       ├── [ClarificationHandler] ──► Returns "needs_context" + missingContext
+            │       ├── [DirectHandler]        ──► Returns concept explanation / greeting
+            │       ├── [StructuredHandler]    ──► Queries MongoDB (Subjects, Exams, etc.)
+            │       │                              └── Grounded answer via Gemini
+            │       ├── [VectorHandler]        ──► Policy intent recognition (Phase 4 RAG)
+            │       └── [HybridHandler]        ──► Combined structured + RAG pipeline
             │
-            ▼
-     [Retrieval Layer]
-     ├── MongoDB Structured Data (Exams, Subjects, Timetables, Deadlines)
-     └── RAG / Vector Search (Institutional Regulations, Circulars, Handbooks)
-            │
-            ▼
-  [Gemini Response Generation]
-     - Grounded synthesis, exact policy citations, zero hallucination
-            │
-            ▼
-     Authoritative Conversational Response delivered to Student
+            └─► 4. Turn Persistence & Response
+                    - Appends turn to Conversation collection
+                    - Delivers structured ChatResponsePayload to Student
 
 ========================================================================================
 2. ADMINISTRATIVE MANAGEMENT PATHWAY (Protected Authority & Ingestion)
@@ -93,22 +92,50 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
 
 ---
 
-## 3. Component Responsibilities
+## 3. Query Analysis Contract & Pipeline
 
-### A. Next.js Frontend
-- **Public Chatbot & Home**: Direct access with zero authentication barriers or redirects.
-- **Admin Portal (`/admin/*`)**: Guarded by `AdminGuard` component requiring valid Admin JWT session.
-- **Client Separation**: Pure presentation layer consuming REST APIs. Never stores backend secrets.
+```text
+Student Message + Existing Context
+              │
+              ▼
+   [QueryAnalyzerService]
+              │
+              ▼
+  ┌────────────────────────────────────────────────────────┐
+  │ QueryAnalysis Schema                                   │
+  │ • intent: AcademicIntent                               │
+  │ • entities: ExtractedEntities                          │
+  │ • requiredContext: string[]                            │
+  │ • providedContext: string[]                            │
+  │ • missingContext: string[]                             │
+  │ • retrievalStrategy: 'direct' | 'structured' |         │
+  │                      'vector' | 'hybrid' |             │
+  │                      'clarification'                   │
+  │ • confidenceScore: number                              │
+  │ • clarificationPrompt?: string                         │
+  │ • reasoningSummary?: string                            │
+  └────────────────────────────────────────────────────────┘
+              │
+              ▼
+   [Validation & Normalization]
+              │
+              ▼
+  [Controlled Strategy Handlers] (Node.js executes queries, never Gemini)
+```
 
-### B. Node.js / Express Backend
-- **Gatekeeper & Security**: Validates incoming payloads, protects mutation endpoints with `authenticateToken` and `requireRole('admin')`.
-- **Public Endpoints**: Safe, read-only academic catalog endpoints with filter support.
-- **AI Orchestration**: Houses `GEMINI_API_KEY` securely to execute prompt assembly, vector searches, and grounded responses.
+---
 
-### C. MongoDB Database & Atlas Vector Search
-- **Structured Storage**: Mongoose models for Departments, Programs, Subjects, Exams, Assignments, Calendar Events, Regulations, Documents, and Admin Users.
-- **Vector Search (Phase 4)**: Vector embeddings generated from institutional PDF chunks for semantic retrieval.
+## 4. Phase 3 Implemented vs Phase 4 Planned Components
 
-### D. Google Gemini AI Layer (Phase 3 & Phase 4)
-- **Natural Language Understanding (NLU)**: Disambiguates informal student queries, extracts query context, identifies missing parameters, and synthesizes policy answers with citations.
-- **Strict Anti-Hallucination Policy**: Gemini operates strictly as an orchestrator and synthesizer grounded by database and vector search records, never as an ungrounded oracle.
+### Implemented in Phase 3
+- **Gemini Service**: Isolated backend caller with structured JSON generation and timeout handling.
+- **Query Analyzer Service**: Real-time NLU classification, entity parsing, context resolution, and strategy assignment.
+- **Controlled Retrieval Handlers**: `DirectHandler`, `StructuredHandler`, `ClarificationHandler`, `VectorHandler`, and `HybridHandler`.
+- **Conversation State**: Mongoose `Conversation` model with message histories and accumulated `queryContext`.
+- **Public Chat API**: `POST /api/chat` and `GET /api/chat/:id`.
+
+### Scheduled for Phase 4 (Academic RAG & Vector Search)
+- PDF document parsing, text extraction, and chunking with token overlap.
+- Vector embedding generation via Gemini embedding models (`text-embedding-004`).
+- MongoDB Atlas Vector Search index integration and semantic retrieval.
+- Exact excerpt citations and source page attribution.

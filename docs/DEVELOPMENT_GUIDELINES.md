@@ -27,7 +27,10 @@ To maintain high code quality, security, and architectural integrity across **Ed
 
 10. **Backend-Only AI Operations**: All Gemini API calls and prompt assembly must reside inside backend AI services.
 11. **Never Expose Secrets**: The `GEMINI_API_KEY`, `JWT_SECRET`, and `MONGODB_URI` must never be sent to or exposed in the frontend. Never hardcode credentials in source files or commits.
-12. **Grounded Anti-Hallucination Policy**: Ground AI responses in authoritative MongoDB records and indexed PDF chunks with explicit citations.
+12. **Structured QueryAnalysis Validation**: Always validate and normalize raw LLM outputs through `validateAndNormalizeQueryAnalysis` before acting on them.
+13. **Zero Arbitrary Query Execution**: Gemini must **never** generate raw database queries (`$where`, SQL, or unrestricted Mongoose query objects). Node.js remains solely responsible for executing parameterized database calls based on validated entities.
+14. **Grounded Anti-Hallucination Policy**: Ground AI responses in authoritative MongoDB records and indexed PDF chunks with explicit citations. Never fabricate exam dates, pass marks, or attendance rules.
+15. **Mocking & Fallback in Tests**: Test suites must test deterministic query analysis without mandatory dependence on live third-party network calls.
 
 ---
 

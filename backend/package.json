@@ -9,6 +9,7 @@
     "build": "rimraf dist && tsc",
     "start": "node dist/server.js",
     "test:connections": "tsx src/scripts/test-connections.ts",
+    "test:ai": "tsx src/scripts/test-phase3-ai.ts",
     "seed": "tsx src/scripts/seed-academic-data.ts",
     "clean": "rimraf dist"
   },

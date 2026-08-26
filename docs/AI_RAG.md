@@ -1,35 +1,33 @@
 # AI & RAG Architecture Specification — Exam & Academic Assistant (EduPilot)
 
-This document outlines the planned design for the **AI Understanding**, **Query Context Processing**, and **Retrieval-Augmented Generation (RAG)** pipeline.
+This document details the implemented **AI Query Analysis** pipeline (Phase 3) and the planned **Retrieval-Augmented Generation (RAG)** pipeline (Phase 4).
 
 ---
 
-## 1. Overview & Dual-Layer Retrieval Pipeline
+## 1. AI Query Analysis Architecture (Phase 3 Implemented)
 
 ```text
-Student Natural Language Query
+Student Natural Language Query + Active Context
        │
        ▼
 [Backend Node.js Orchestrator]
        │
-       ├─► 1. Intent Detection & Entity Extraction (Gemini)
-       │       - Identify Intent (e.g. `exam_schedule`, `syllabus_breakdown`, `attendance_policy`)
-       │       - Extract Entities (Subject: `CS501`, Term: `End-Sem`)
+       ├─► 1. Query Analyzer (Gemini NLU / Deterministic Engine)
+       │       - Intent Classification (e.g. `exam_schedule`, `subject_credits`)
+       │       - Entity Extraction (Subject: `CS501`, Dept: `CSE`, Sem: `5`)
+       │       - Context Resolution (Required vs Provided vs Missing)
+       │       - Retrieval Strategy Assignment
        │
-       ├─► 2. Missing Context Evaluation (Query Context)
-       │       - Check if required context is missing (e.g. needs `department` + `semester`)
-       │       - If missing: Return prompt asking user conversationally
-       │       - If present: Assemble QueryContext filter
+       ├─► 2. Schema Validation & Normalization (`validateAndNormalizeQueryAnalysis`)
        │
-       ├─► 3. Context Retrieval Layer:
-       │       ├── Structured DB Query (MongoDB: exact dates, subjects, credits)
-       │       └── Semantic Vector Search (Atlas Vector Search: regulations, handbooks)
+       ├─► 3. Strategy Routing:
+       │       ├── 'clarification' ──► Prompt for missing context (e.g. "Which semester?")
+       │       ├── 'direct'        ──► Concept definition or greeting
+       │       ├── 'structured'    ──► Query MongoDB (Subjects, Exams, Deadlines)
+       │       ├── 'vector'        ──► Policy intent recognition (Phase 4 RAG)
+       │       └── 'hybrid'        ──► Combined structured + RAG pipeline
        │
-       ├─► 4. Grounded Synthesis Prompt Assembly
-       │       - Inject verified facts & exact citations
-       │       - Enforce anti-hallucination constraints
-       │
-       └─► 5. Final Response Generation (Gemini)
+       └─► 4. Grounded Synthesis & Response Assembly
                │
                ▼
        Formatted Grounded Response Delivered to Student
@@ -37,63 +35,107 @@ Student Natural Language Query
 
 ---
 
-## 2. The Query Context Architecture
+## 2. QueryAnalysis Schema & Contract
 
-### A. Concept & Purpose
-Students interact with the chatbot without authentication. However, some academic questions require specific context to retrieve accurate information.
-
-We define **Query Context** as an optional set of conversational parameters:
+The backend uses a strict, strongly typed schema for all query analysis operations:
 
 ```typescript
-export interface QueryContext {
-  rollNumber?: string;
+export type RetrievalStrategy =
+  | 'direct'
+  | 'structured'
+  | 'vector'
+  | 'hybrid'
+  | 'clarification';
+
+export type AcademicIntent =
+  | 'concept_explanation'
+  | 'subject_credits'
+  | 'syllabus_breakdown'
+  | 'exam_schedule'
+  | 'assignment_deadlines'
+  | 'academic_calendar'
+  | 'attendance_policy'
+  | 'grading_policy'
+  | 'academic_regulation'
+  | 'hybrid_curriculum_policy'
+  | 'general_inquiry'
+  | 'context_response'
+  | 'ambiguous'
+  | 'unknown';
+
+export interface ExtractedEntities {
+  subject?: string;
+  subjectCode?: string;
   department?: string;
   program?: string;
   semester?: number;
   academicYear?: string;
-  subject?: string;
+  examType?: string;
+  date?: string;
+  dateRange?: {
+    start?: string;
+    end?: string;
+  };
+}
+
+export interface QueryAnalysis {
+  intent: AcademicIntent;
+  entities: ExtractedEntities;
+  requiredContext: string[];
+  providedContext: string[];
+  missingContext: string[];
+  retrievalStrategy: RetrievalStrategy;
+  confidenceScore?: number;
+  clarificationPrompt?: string;
+  reasoningSummary?: string;
 }
 ```
 
-### B. Conversational Context Resolution Examples
+---
 
-| Student Question | Intent | Required Context | Action Taken |
+## 3. Retrieval Strategy Taxonomies & Behaviors
+
+| Strategy | When Used | Example Query | Action Taken |
 | :--- | :--- | :--- | :--- |
-| *"What is DBMS?"* | `concept_explanation` | None | Direct academic explanation |
-| *"What is the DBMS syllabus?"* | `syllabus_query` | Subject (`DBMS` / `CS501`) | Query subject collection directly |
-| *"When is my next exam?"* | `exam_schedule` | `department` + `semester` | Assistant asks: *"Please provide your department and semester."* |
-| *"CSE semester 5"* *(Follow-up)* | `context_response` | Received: `CSE`, `Sem 5` | Backend queries MongoDB for upcoming CSE Sem 5 exams and responds |
-
-> [!IMPORTANT]
-> **Query Context != Identity Verification**:
-> A roll number or department provided in conversation is strictly used to query public academic timetables. It is never treated as a secret token or proof of identity, and private student records are never exposed.
+| **`direct`** | General concepts, greetings, platform help where database search is unnecessary. | *"What is DBMS?"*, *"Hello"* | Directly explains concept; zero institutional facts fabricated. |
+| **`structured`** | Facts residing in MongoDB structured collections (credits, exam timetables, assignment deadlines, calendar milestones). | *"How many credits does DBMS have?"*, *"When is the CSE Sem 5 exam?"* | Node.js executes Mongoose queries; Gemini synthesizes grounded facts. |
+| **`vector`** | Institutional policies, regulations, circulars, handbooks intended for semantic document retrieval. | *"What is the attendance condonation policy?"* | Recognizes policy intent; baseline regulation summary; full PDF search in Phase 4. |
+| **`hybrid`** | Combined inquiries requiring both structured dates/credits AND syllabus/handbook document chapters. | *"When is the DBMS exam and what topics are covered?"* | Coordinates structured query with document knowledge note. |
+| **`clarification`** | Critical required parameters are missing to answer the query accurately. | *"When is my exam?"* (no context) | Returns `needs_context` status with polite prompt asking for department/semester. |
 
 ---
 
-## 3. Separation of Responsibilities
+## 4. Context Resolution Rules
 
-### A. Google Gemini AI Layer (Phase 3 & Phase 4)
-- **Natural Language Understanding (NLU)**: Parse student queries across informal phrasing, abbreviations, and course codes.
-- **Intent & Missing Context Detection**: Classify query goals and detect missing required context.
-- **Response Synthesis**: Synthesize retrieved structured database facts and RAG PDF excerpts into clear, bulleted answers.
-- **Tone & Citations**: Authoritative, concise academic assistant tone with official circular and handbook citations.
+1. **Minimal Intrusion Principle**: The system **never** asks for student context if the query does not genuinely require it (e.g. asking *"What is DBMS?"* never prompts for department or roll number).
+2. **Context Reuse Across Turns**: If a student states *"I am in CSE semester 5"*, that context is saved to the session. Subsequent queries like *"What exams do I have?"* resolve immediately to `structured` without re-prompting.
+3. **Roll Number is NOT Authentication**: A roll number is treated as an optional cohort filter, never as an identity verification token.
 
-### B. Backend Node.js / Express Orchestrator
-- **Request Validation**: Sanitizes payloads and ensures safe query execution.
-- **API Key Isolation**: Server-side storage for `GEMINI_API_KEY`; never exposed to the client.
-- **Query Routing**: Directs queries to MongoDB structured collections vs RAG vector search indices.
-- **Prompt Templating**: Assembles grounded system instructions containing official data.
+---
 
-### C. Academic RAG & Vector Search Layer (Phase 4)
+## 5. Division of Responsibilities
+
+### Gemini AI Layer (Server-Side)
+- **Natural Language Understanding**: Deciphers abbreviations, course codes, and informal student phrasing.
+- **Intent & Entity Extraction**: Identifies query goals and extracts parameters.
+- **Grounded Response Synthesis**: Synthesizes verified database records into concise, clear bulleted responses.
+- **Strict Constraint**: **Gemini NEVER generates raw MongoDB queries or executes database operations.**
+
+### Node.js Backend Orchestrator
+- **Schema Validation & Normalization**: Guarantees pure, valid JSON conforming to `QueryAnalysis`.
+- **Context Resolution & State**: Manages multi-turn conversation sessions and merges query context.
+- **Query Execution**: Executes parameterized, safe Mongoose queries using extracted entities.
+- **Security & Secret Isolation**: Keeps `GEMINI_API_KEY` securely isolated on the server.
+
+---
+
+## 6. Academic RAG & Vector Search Pipeline (Phase 4 Planned)
+
+> [!NOTE]
+> The RAG pipeline below is scheduled for **Phase 4** and is NOT implemented in Phase 3.
+
 - **Document Ingestion**: Parsing official PDFs (handbooks, exam rules, syllabus books).
 - **Semantic Chunking**: Partitioning documents with token overlap.
 - **Embeddings Generation**: Transforming chunks into vector embeddings via Gemini embedding models (`text-embedding-004`).
-- **Vector Search**: Cosine similarity matching in MongoDB Atlas Vector Search.
-
----
-
-## 4. Grounding Policy & Strict Anti-Hallucination Boundaries
-
-1. **Zero Guessing on Institutional Facts**: Gemini must never fabricate exam dates, pass marks, or attendance criteria.
-2. **Graceful Fallback**: When relevant information does not exist in MongoDB or indexed PDFs, the assistant explicitly states:
-   > *"I could not find official information regarding this in the published academic regulations. Please consult your departmental academic advisor or the examination cell."*
+- **Vector Indexing**: MongoDB Atlas Vector Search indices for cosine similarity search.
+- **Attribution**: Grounded responses with official document name and page number citations.

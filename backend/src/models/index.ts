@@ -7,3 +7,4 @@ export * from './assignment.model';
 export * from './academic-calendar.model';
 export * from './regulation.model';
 export * from './document.model';
+export * from './conversation.model';

@@ -65,11 +65,12 @@ Provide a unified, conversational natural-language assistant backed by Google's 
 - Seed data scripts for initial institutional setup.
 - Unauthenticated public student access model established with Query Context architecture.
 
-### Phase 3: Conversational AI & Gemini Integration *(Planned)*
-- Gemini API integration with prompt orchestration and intent classification.
-- Dynamic query routing: resolving structured database queries vs open-domain academic questions.
-- Conversational Query Context extraction (identifying missing parameters like department/semester and prompting the user).
-- Multi-turn conversation sessions.
+### Phase 3: Conversational AI & Gemini Integration *(Complete)*
+- Gemini API integration with prompt orchestration, structured JSON analysis, and strict schema validation.
+- Controlled retrieval strategy routing (`direct`, `structured`, `vector`, `hybrid`, `clarification`).
+- Conversational Query Context extraction and missing-context clarification prompts.
+- Public `/api/chat` conversational endpoint with multi-turn session persistence.
+- Strict anti-hallucination boundaries and isolated server-side AI execution.
 
 ### Phase 4: Academic RAG & Vector Search *(Planned)*
 - Document ingestion pipeline for academic PDFs (student handbooks, syllabi, exam circulars).

@@ -11,12 +11,14 @@ import regulationRoutes from './regulation.routes';
 import documentRoutes from './document.routes';
 import bulkImportRoutes from './bulk-import.routes';
 import userRoutes from './user.routes';
+import chatRoutes from './chat.routes';
 
 const router = Router();
 
 // Mount active endpoints
 router.use('/health', healthRoutes);
 router.use('/auth', authRoutes);
+router.use('/chat', chatRoutes);
 router.use('/departments', departmentRoutes);
 router.use('/programs', programRoutes);
 router.use('/subjects', subjectRoutes);
