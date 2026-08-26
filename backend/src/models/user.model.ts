@@ -1,6 +1,12 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
+/**
+ * User Model
+ * Represents authenticated system users (primarily Administrators and staff managing academic data).
+ * Note: Chatbot visitors / students querying academic data interact unauthenticated with optional
+ * query context, and do not require User documents.
+ */
 export interface IUser extends Document {
   _id: mongoose.Types.ObjectId;
   name: string;

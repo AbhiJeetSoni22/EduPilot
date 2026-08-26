@@ -51,16 +51,16 @@ export default function LoginPage() {
     <div className="container auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <div className="auth-icon-badge">🔐</div>
-          <h1 className="auth-title">Welcome to EduPilot</h1>
-          <p className="auth-subtitle">Sign in to access the Academic Management Portal</p>
+          <div className="auth-icon-badge">🏛️</div>
+          <h1 className="auth-title">Academic Portal Login</h1>
+          <p className="auth-subtitle">Administrator & Academic Staff Access</p>
         </div>
 
         {/* Quick Demo Credentials for Fast Evaluation */}
         <div className="demo-credentials-card">
           <div className="demo-header-row">
             <span className="demo-sparkle">⚡</span>
-            <span className="demo-title">Quick Demo Login</span>
+            <span className="demo-title">Development Demo Login</span>
           </div>
           <div className="demo-buttons-grid">
             <button
@@ -70,23 +70,13 @@ export default function LoginPage() {
               disabled={isSubmitting}
             >
               <div className="demo-role-badge">Admin</div>
-              <div className="demo-subtext">Dean Academic Affairs</div>
-            </button>
-
-            <button
-              type="button"
-              className="btn-demo student-demo"
-              onClick={() => handleQuickLogin('student@edupilot.edu', 'Student@123456')}
-              disabled={isSubmitting}
-            >
-              <div className="demo-role-badge">Student</div>
-              <div className="demo-subtext">Semester 5 Student</div>
+              <div className="demo-subtext">Dr. Eleanor Vance (Dean)</div>
             </button>
           </div>
         </div>
 
         <div className="auth-divider">
-          <span>or continue with credentials</span>
+          <span>or sign in with admin credentials</span>
         </div>
 
         {error && (
@@ -99,7 +89,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="auth-form">
           <div className="form-group">
             <label className="form-label" htmlFor="email">
-              Email Address
+              Admin Email Address
             </label>
             <input
               id="email"
@@ -135,16 +125,19 @@ export default function LoginPage() {
             {isSubmitting ? (
               <span className="btn-spinner-text">Authenticating...</span>
             ) : (
-              <span>Sign In to Portal →</span>
+              <span>Sign In to Academic Portal →</span>
             )}
           </button>
         </form>
 
-        <div className="auth-footer-links">
-          <span>Need a new account?</span>
-          <Link href="/register" className="auth-link">
-            Create an Account
-          </Link>
+        <div className="auth-footer-notice" style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+          <p>
+            💡 <strong>Students & General Users:</strong> No login or account is required.
+            Academic information and assistant queries are freely accessible on the{' '}
+            <Link href="/" className="auth-link">
+              Home Page
+            </Link>.
+          </p>
         </div>
       </div>
     </div>

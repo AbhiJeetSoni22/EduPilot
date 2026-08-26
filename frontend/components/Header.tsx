@@ -45,10 +45,8 @@ export function Header() {
             </div>
           ) : (
             <div className="auth-action-buttons">
-              <Link href="/login" className="btn-login-link">
-                Sign In
-              </Link>
               <Link href="/admin" className="header-portal-btn">
+                <span className="portal-icon">🏛️</span>
                 <span>Academic Portal</span>
               </Link>
             </div>

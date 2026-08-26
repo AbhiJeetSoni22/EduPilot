@@ -1,62 +1,99 @@
-# AI & RAG Architecture Specification — Exam & Academic Assistant
+# AI & RAG Architecture Specification — Exam & Academic Assistant (EduPilot)
 
-This document outlines the planned design for the **AI Understanding** and **Retrieval-Augmented Generation (RAG)** pipeline.
+This document outlines the planned design for the **AI Understanding**, **Query Context Processing**, and **Retrieval-Augmented Generation (RAG)** pipeline.
 
 ---
 
-## 1. Overview & Separation of Concerns
+## 1. Overview & Dual-Layer Retrieval Pipeline
 
 ```text
-Student Question
+Student Natural Language Query
        │
        ▼
 [Backend Node.js Orchestrator]
        │
-       ├─► 1. Intent Detection & Extraction (Gemini)
+       ├─► 1. Intent Detection & Entity Extraction (Gemini)
+       │       - Identify Intent (e.g. `exam_schedule`, `syllabus_breakdown`, `attendance_policy`)
+       │       - Extract Entities (Subject: `CS501`, Term: `End-Sem`)
        │
-       ├─► 2. Context Retrieval:
-       │       ├── Structured DB Query (MongoDB)
-       │       └── Semantic Vector Search (Atlas Vector Search / Embeddings)
+       ├─► 2. Missing Context Evaluation (Query Context)
+       │       - Check if required context is missing (e.g. needs `department` + `semester`)
+       │       - If missing: Return prompt asking user conversationally
+       │       - If present: Assemble QueryContext filter
        │
-       ├─► 3. Grounded Synthesis Prompt Assembly
+       ├─► 3. Context Retrieval Layer:
+       │       ├── Structured DB Query (MongoDB: exact dates, subjects, credits)
+       │       └── Semantic Vector Search (Atlas Vector Search: regulations, handbooks)
        │
-       └─► 4. Final Response Generation (Gemini)
+       ├─► 4. Grounded Synthesis Prompt Assembly
+       │       - Inject verified facts & exact citations
+       │       - Enforce anti-hallucination constraints
+       │
+       └─► 5. Final Response Generation (Gemini)
                │
                ▼
-       Formatted Response to Student
+       Formatted Grounded Response Delivered to Student
 ```
 
 ---
 
-## 2. Responsibilities Breakdown
+## 2. The Query Context Architecture
 
-### A. AI Responsibilities (Google Gemini API)
-- **Natural Language Understanding (NLU)**: Decipher ambiguous student questions, slang, and academic phrasing.
-- **Intent Classification**: Identify whether the student is asking about exam dates, syllabus content, attendance regulations, grade formulas, or assignment deadlines.
-- **Entity Extraction**: Identify parameters such as course code (`CS101`), semester (`Sem 4`), or date ranges.
-- **Response Synthesis**: Synthesize retrieved official data and document excerpts into friendly, concise, bulleted explanations with source citations.
-- **Tone & Safety Constraints**: Maintain an authoritative academic tone and explicitly state when an official document does not contain an answer rather than guessing.
+### A. Concept & Purpose
+Students interact with the chatbot without authentication. However, some academic questions require specific context to retrieve accurate information.
 
-### B. Backend Responsibilities (Node.js / Express)
-- **Request Validation & Security**: Validate incoming payloads, sanitize inputs, and verify user permissions.
-- **API Key Protection**: Store `GEMINI_API_KEY` securely on the server and never expose it to client code.
-- **Conversation State Management**: Persist multi-turn conversation context in MongoDB.
-- **Orchestration & Routing**: Decide whether to fulfill queries via structured MongoDB collections or via the RAG vector search pipeline.
-- **Prompt Templating**: Inject retrieved context into system prompts with strict grounding instructions.
-- **Error Handling & Fallbacks**: Provide graceful fallback messages in case of AI rate limits or network issues.
+We define **Query Context** as an optional set of conversational parameters:
 
-### C. RAG Responsibilities *(Future Phase)*
-- **Document Ingestion**: Read raw academic PDFs (Student Handbooks, Exam Regulations, Syllabi).
-- **Text Chunking**: Segment documents into semantic chunks (e.g. 500-1000 tokens with 100-token overlap).
-- **Embedding Generation**: Convert text chunks into vector embeddings via Gemini embedding models (e.g. `text-embedding-004`).
-- **Vector Indexing & Storage**: Store vector embeddings alongside chunk metadata in MongoDB Atlas Vector Search.
-- **Semantic Retrieval**: Execute cosine/dot-product similarity searches to find top $k$ relevant excerpts for a student query.
-- **Attribution**: Return source document names and page numbers for transparent citations.
+```typescript
+export interface QueryContext {
+  rollNumber?: string;
+  department?: string;
+  program?: string;
+  semester?: number;
+  academicYear?: string;
+  subject?: string;
+}
+```
+
+### B. Conversational Context Resolution Examples
+
+| Student Question | Intent | Required Context | Action Taken |
+| :--- | :--- | :--- | :--- |
+| *"What is DBMS?"* | `concept_explanation` | None | Direct academic explanation |
+| *"What is the DBMS syllabus?"* | `syllabus_query` | Subject (`DBMS` / `CS501`) | Query subject collection directly |
+| *"When is my next exam?"* | `exam_schedule` | `department` + `semester` | Assistant asks: *"Please provide your department and semester."* |
+| *"CSE semester 5"* *(Follow-up)* | `context_response` | Received: `CSE`, `Sem 5` | Backend queries MongoDB for upcoming CSE Sem 5 exams and responds |
+
+> [!IMPORTANT]
+> **Query Context != Identity Verification**:
+> A roll number or department provided in conversation is strictly used to query public academic timetables. It is never treated as a secret token or proof of identity, and private student records are never exposed.
 
 ---
 
-## 3. Grounding Rule & Anti-Hallucination Policy
-To ensure high academic reliability:
-1. **Never use AI as an ungrounded oracle**: Gemini must not invent exam dates, passing marks, or attendance criteria.
-2. **Context-Driven Answers**: If relevant context cannot be found in MongoDB or the vector store, the system must answer:
-   > *"I could not find official information regarding this in the current academic regulations. Please consult your academic advisor or departmental examination cell."*
+## 3. Separation of Responsibilities
+
+### A. Google Gemini AI Layer (Phase 3 & Phase 4)
+- **Natural Language Understanding (NLU)**: Parse student queries across informal phrasing, abbreviations, and course codes.
+- **Intent & Missing Context Detection**: Classify query goals and detect missing required context.
+- **Response Synthesis**: Synthesize retrieved structured database facts and RAG PDF excerpts into clear, bulleted answers.
+- **Tone & Citations**: Authoritative, concise academic assistant tone with official circular and handbook citations.
+
+### B. Backend Node.js / Express Orchestrator
+- **Request Validation**: Sanitizes payloads and ensures safe query execution.
+- **API Key Isolation**: Server-side storage for `GEMINI_API_KEY`; never exposed to the client.
+- **Query Routing**: Directs queries to MongoDB structured collections vs RAG vector search indices.
+- **Prompt Templating**: Assembles grounded system instructions containing official data.
+
+### C. Academic RAG & Vector Search Layer (Phase 4)
+- **Document Ingestion**: Parsing official PDFs (handbooks, exam rules, syllabus books).
+- **Semantic Chunking**: Partitioning documents with token overlap.
+- **Embeddings Generation**: Transforming chunks into vector embeddings via Gemini embedding models (`text-embedding-004`).
+- **Vector Search**: Cosine similarity matching in MongoDB Atlas Vector Search.
+
+---
+
+## 4. Grounding Policy & Strict Anti-Hallucination Boundaries
+
+1. **Zero Guessing on Institutional Facts**: Gemini must never fabricate exam dates, pass marks, or attendance criteria.
+2. **Graceful Fallback**: When relevant information does not exist in MongoDB or indexed PDFs, the assistant explicitly states:
+   > *"I could not find official information regarding this in the published academic regulations. Please consult your departmental academic advisor or the examination cell."*

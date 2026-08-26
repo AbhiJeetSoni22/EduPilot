@@ -1,7 +1,7 @@
-# Product Requirements Document (PRD) — Exam & Academic Assistant
+# Product Requirements Document (PRD) — Exam & Academic Assistant (EduPilot)
 
 ## 1. Project Overview
-**Exam & Academic Assistant** is an AI-powered academic support chatbot designed for university and college students. It provides fast, conversational, and authoritative answers to students' questions regarding examinations, academic calendars, syllabus details, grading policies, attendance regulations, and assignment requirements.
+**Exam & Academic Assistant (EduPilot)** is an AI-powered academic companion designed for university and college students. It provides fast, conversational, and authoritative answers to questions regarding examinations, academic calendars, syllabus details, grading policies, attendance regulations, and assignment requirements.
 
 ---
 
@@ -13,10 +13,17 @@ In higher education institutions, vital academic information is often fragmented
 
 ---
 
-## 3. Target Users
-1. **Undergraduate & Postgraduate Students**: Seeking quick, reliable, and contextual answers about courses, exams, assignments, and policies.
-2. **Faculty / Academic Advisors** *(Planned)*: Referring students to standardized academic regulations and managing course-specific data.
-3. **University Administrators** *(Planned)*: Uploading academic documents, managing course metadata, updating exam schedules, and monitoring query trends.
+## 3. Target Users & Access Model
+
+### A. Student / Public Experience (Unauthenticated)
+- **Zero-Barrier Access**: Students can open EduPilot and interact with the academic chatbot immediately without registration, login, password, or student JWTs.
+- **Open Academic Inquiries**: General academic questions (e.g. *"What is the DBMS syllabus?"*, *"How many credits is CS501?"*, *"What are the semester 5 attendance rules?"*, *"Explain the grading scale"*) are publicly accessible.
+- **Query Context (Not Authentication)**: If a specific query requires additional context (e.g., department, program, semester, or roll number), the assistant prompts for that context conversationally. Query context is strictly used as a query filter, never as an identity verification token.
+- **Privacy & Security Boundary**: Private student records (e.g., individual marks, personal attendance percentages, disciplinary files) are strictly outside the current MVP and will never be exposed via roll number.
+
+### B. Administrator Experience (Authenticated)
+- **Institutional Authority**: Deans, department heads, and academic staff manage the official source-of-truth.
+- **Protected Access**: All data mutations (creating/editing/deleting subjects, scheduling exams, configuring regulations, uploading knowledge base documents, and bulk importing data) require verified Admin JWT authentication and authorization.
 
 ---
 
@@ -25,7 +32,9 @@ Provide a unified, conversational natural-language assistant backed by Google's 
 
 ---
 
-## 5. Core Chatbot Capabilities (Target Experience)
+## 5. Core Capabilities
+
+### Academic Information Retrieval (Public Chatbot)
 - **Exam Schedules & Information**: Exam dates, shifts, venues, hall ticket regulations, and re-evaluation procedures.
 - **Syllabus & Course Information**: Unit-wise breakdown, textbook references, prerequisites, and credit allocations.
 - **Attendance Rules & Requirements**: Minimum attendance criteria, condonation policies, and medical leave protocols.
@@ -33,47 +42,53 @@ Provide a unified, conversational natural-language assistant backed by Google's 
 - **Grading & Evaluation Policies**: GPA/CGPA calculation schemas, passing criteria, grace marks, and backlog policies.
 - **Academic Regulations**: Degree completion guidelines, semester promotion rules, and disciplinary procedures.
 
+### Academic Management Portal (Protected Admin)
+- **Curriculum Management**: Department, Program, and Subject definitions with credit breakdowns.
+- **Exam & Calendar Scheduling**: Assessment timelines, exam shifts, and academic milestones.
+- **Knowledge Base Management**: PDF handbook uploads, regulation documents, and circular indexing.
+- **Batch Data Operations**: Bulk CSV/JSON imports with pre-validation and interactive preview.
+
 ---
 
-## 6. Project Scope
+## 6. Project Scope & Phased Roadmap
 
-### Phase 1: MVP Scope
-- **Scaffold & Architecture**: Clean separation between Next.js frontend, Express backend, and MongoDB database.
-- **System Health & Monitoring**: Operational `/api/health` checking server uptime and database connectivity.
-- **Documentation System**: Comprehensive PRD, Architecture, AI/RAG specs, API specs, and development guidelines.
-- **UI Foundation**: Modern, responsive placeholder layout highlighting upcoming capabilities with backend health status connectivity.
+### Phase 1: MVP Foundation *(Complete)*
+- Clean full-stack separation (Next.js frontend, Express backend, MongoDB database).
+- Operational health monitoring (`/api/health`).
+- Project documentation and design tokens.
 
-### Phase 2: Structured Academic Data & Auth *(Planned)*
-- User authentication & role management (Student, Admin).
-- MongoDB Mongoose schemas for Exams, Courses/Subjects, Schedules, Assignments, and Regulations.
-- RESTful CRUD APIs for academic entities.
-- Student dashboard for viewing upcoming exams and assignment timelines.
+### Phase 2: Structured Academic Data & Administration *(Complete)*
+- MongoDB Mongoose schemas for Departments, Programs, Subjects, Exams, Assignments, Calendar Events, Regulations, and Documents.
+- Authoritative RESTful APIs: Public read endpoints for curriculum/exam info, Admin-protected mutation endpoints.
+- Administrator authentication and JWT session verification for Academic Management Portal.
+- Bulk CSV/JSON import with validation pipeline.
+- Seed data scripts for initial institutional setup.
+- Unauthenticated public student access model established with Query Context architecture.
 
 ### Phase 3: Conversational AI & Gemini Integration *(Planned)*
 - Gemini API integration with prompt orchestration and intent classification.
 - Dynamic query routing: resolving structured database queries vs open-domain academic questions.
-- Chat session persistence and multi-turn context retention.
+- Conversational Query Context extraction (identifying missing parameters like department/semester and prompting the user).
+- Multi-turn conversation sessions.
 
 ### Phase 4: Academic RAG & Vector Search *(Planned)*
 - Document ingestion pipeline for academic PDFs (student handbooks, syllabi, exam circulars).
-- Text extraction, chunking, and embedding generation via Gemini / text-embedding models.
+- Text extraction, chunking, and embedding generation via Gemini embedding models.
 - MongoDB Atlas Vector Search integration for semantic context retrieval.
 - Grounded response generation with source citations.
 
-### Phase 5: Administration & Analytics *(To Be Discussed)*
-- Admin dashboard for PDF uploads and chunk inspection.
-- Unanswered query analytics and student sentiment metrics.
-- Multi-department / multi-program segregation.
+### Phase 5: Administration & Analytics *(Planned)*
+- Query trend analytics, unanswered question logging, and knowledge base coverage insights.
 
 ---
 
 ## 7. Technology Stack Summary
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
-| **Frontend** | Next.js (App Router), React, TypeScript | Responsive user interface & client-side state |
-| **Styling** | Modern CSS / CSS Modules | Premium design system, responsive layouts, glassmorphism |
-| **Backend** | Node.js, Express.js, TypeScript | REST API, validation, orchestration, business logic |
-| **Database** | MongoDB, Mongoose | Structured storage for users, courses, exams, chat histories |
+| **Frontend** | Next.js 15 (App Router), React 19, TypeScript | Responsive user interface, Public Chatbot UI & Admin Portal |
+| **Styling** | Vanilla CSS Design System | Responsive layout, dark/light theme, glassmorphism |
+| **Backend** | Node.js, Express.js, TypeScript | REST API, validation, admin authentication, AI orchestration |
+| **Database** | MongoDB, Mongoose | Structured storage for academic entities and document metadata |
 | **AI Layer** | Google Gemini API *(Planned)* | Natural language understanding, intent recognition, text synthesis |
 | **Vector / RAG** | MongoDB Atlas Vector Search *(Planned)* | Semantic document retrieval from institutional PDFs |
 | **Orchestration**| npm scripts, Concurrently | Coordinated full-stack local development |
