@@ -8,13 +8,13 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
 
 ```text
 ========================================================================================
-1. CONVERSATIONAL AI & CHATBOT PATHWAY (Phase 3 Implemented Architecture)
+1. CONVERSATIONAL AI & CHATBOT PATHWAY (Phase 3 Completed Architecture)
 ========================================================================================
 
    Student / Public User
             │
             ▼
-     EduPilot Chat UI (No login / registration required)
+     EduPilot Chat UI (components/ChatInterface.tsx)
             │
             │ POST /api/chat { message, conversationId?, queryContext? }
             ▼
@@ -23,20 +23,30 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
             ├─► 1. Session & Context Resolution (ConversationService)
             │       - Retrieve active session by conversationId
             │       - Merge existing session context with incoming queryContext
+            │       - Identify pending intents for multi-turn follow-ups
             │
             ├─► 2. AI Query Analyzer (QueryAnalyzerService)
             │       - System Instruction & Few-Shot Prompts
             │       - Gemini structured JSON output (temperature=0.05)
-            │       - Schema Validation & Normalization
+            │       - Schema Validation & Normalization (validateAndNormalizeQueryAnalysis)
             │       - Output: Strongly typed QueryAnalysis
             │
             ├─► 3. Strategy Routing & Execution (OrchestratorService)
-            │       ├── [ClarificationHandler] ──► Returns "needs_context" + missingContext
-            │       ├── [DirectHandler]        ──► Returns concept explanation / greeting
-            │       ├── [StructuredHandler]    ──► Queries MongoDB (Subjects, Exams, etc.)
-            │       │                              └── Grounded answer via Gemini
-            │       ├── [VectorHandler]        ──► Policy intent recognition (Phase 4 RAG)
-            │       └── [HybridHandler]        ──► Combined structured + RAG pipeline
+            │       ├── [ClarificationHandler]  ──► Returns status: "needs_context" + missingContext
+            │       ├── [DirectHandler]         ──► Returns concept explanation / greeting
+            │       ├── [StructuredHandler]     ──► ParameterValidator (Sanitization)
+            │       │                                 ├── SubjectService          ──► MongoDB
+            │       │                                 ├── ExamService             ──► MongoDB
+            │       │                                 ├── AssignmentService       ──► MongoDB
+            │       │                                 ├── AcademicCalendarService ──► MongoDB
+            │       │                                 └── RegulationService       ──► MongoDB
+            │       │                                      │
+            │       │                                      ▼
+            │       │                           [ResponseGeneratorService]
+            │       │                           (Zero-hallucination grounded answer)
+            │       │
+            │       ├── [VectorHandler]         ──► Returns status: "retrieval_unavailable" (Phase 4)
+            │       └── [HybridHandler]         ──► Returns status: "retrieval_unavailable" (Phase 4)
             │
             └─► 4. Turn Persistence & Response
                     - Appends turn to Conversation collection
@@ -92,7 +102,7 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
 
 ---
 
-## 3. Query Analysis Contract & Pipeline
+## 3. Query Analysis & Execution Contract
 
 ```text
 Student Message + Existing Context
@@ -117,10 +127,15 @@ Student Message + Existing Context
   └────────────────────────────────────────────────────────┘
               │
               ▼
-   [Validation & Normalization]
+   [ParameterValidator Sanitization]
               │
               ▼
-  [Controlled Strategy Handlers] (Node.js executes queries, never Gemini)
+   [Academic Service Query Execution]
+   (SubjectService, ExamService, AssignmentService, etc.)
+              │
+              ▼
+   [ResponseGeneratorService]
+   (Zero-hallucination grounded answer synthesis)
 ```
 
 ---
@@ -128,11 +143,14 @@ Student Message + Existing Context
 ## 4. Phase 3 Implemented vs Phase 4 Planned Components
 
 ### Implemented in Phase 3
-- **Gemini Service**: Isolated backend caller with structured JSON generation and timeout handling.
+- **Gemini Service**: Isolated backend caller with structured JSON generation and timeout handling (`config.geminiModel`).
 - **Query Analyzer Service**: Real-time NLU classification, entity parsing, context resolution, and strategy assignment.
-- **Controlled Retrieval Handlers**: `DirectHandler`, `StructuredHandler`, `ClarificationHandler`, `VectorHandler`, and `HybridHandler`.
+- **Academic Query Services**: Dedicated `SubjectService`, `ExamService`, `AssignmentService`, `AcademicCalendarService`, and `RegulationService`.
+- **Parameter Validation & Sanitization**: `ParameterValidator` preventing query injection and regex attacks.
+- **Zero-Hallucination Response Generator**: `ResponseGeneratorService` grounding responses strictly in verified MongoDB records.
+- **Multi-Turn Context Clarification**: Context merging and pending intent re-evaluation.
 - **Conversation State**: Mongoose `Conversation` model with message histories and accumulated `queryContext`.
-- **Public Chat API**: `POST /api/chat` and `GET /api/chat/:id`.
+- **Public Chat API & UI**: `POST /api/chat`, `GET /api/chat/:id`, and interactive `ChatInterface.tsx` frontend component.
 
 ### Scheduled for Phase 4 (Academic RAG & Vector Search)
 - PDF document parsing, text extraction, and chunking with token overlap.

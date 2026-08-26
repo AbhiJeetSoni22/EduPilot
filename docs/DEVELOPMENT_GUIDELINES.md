@@ -28,18 +28,20 @@ To maintain high code quality, security, and architectural integrity across **Ed
 10. **Backend-Only AI Operations**: All Gemini API calls and prompt assembly must reside inside backend AI services.
 11. **Never Expose Secrets**: The `GEMINI_API_KEY`, `JWT_SECRET`, and `MONGODB_URI` must never be sent to or exposed in the frontend. Never hardcode credentials in source files or commits.
 12. **Structured QueryAnalysis Validation**: Always validate and normalize raw LLM outputs through `validateAndNormalizeQueryAnalysis` before acting on them.
-13. **Zero Arbitrary Query Execution**: Gemini must **never** generate raw database queries (`$where`, SQL, or unrestricted Mongoose query objects). Node.js remains solely responsible for executing parameterized database calls based on validated entities.
-14. **Grounded Anti-Hallucination Policy**: Ground AI responses in authoritative MongoDB records and indexed PDF chunks with explicit citations. Never fabricate exam dates, pass marks, or attendance rules.
-15. **Mocking & Fallback in Tests**: Test suites must test deterministic query analysis without mandatory dependence on live third-party network calls.
+13. **Dedicated Service Query Routing**: Gemini must **never** generate raw database queries (`$where`, SQL, or unrestricted Mongoose query objects). Route all structured lookups strictly through dedicated, strongly typed backend services (`SubjectService`, `ExamService`, `AssignmentService`, `AcademicCalendarService`, `RegulationService`).
+14. **Mandatory Parameter Sanitization**: Sanitize all entity inputs using `ParameterValidator` before passing parameters into database query filters.
+15. **Zero Hallucination of Institutional Facts**: Responses must be grounded strictly in verified database records. If records are unavailable, explicitly inform the user that no matching data was found. Never invent exam dates, venues, credit counts, or university policies.
+16. **Clean Production Configuration**: Application code must never modify system DNS configurations (e.g. `dns.setServers`). Environment-specific workarounds must remain isolated in test runners.
+17. **Deterministic Mocking in Tests**: Test suites must support deterministic query analysis and response formatting without mandatory dependence on live third-party network quotas.
 
 ---
 
 ## 4. Code Quality & Modularity
 
-13. **Single Responsibility**: Each module, controller, and component should have a single, well-defined responsibility.
-14. **Centralized Error Handling**: Use structured Express error middleware and unified JSON response formats.
-15. **Avoid Overengineering**: Prefer simple, readable, and robust TypeScript code over premature abstractions.
-16. **Documentation-Driven Development**:
+18. **Single Responsibility**: Each module, controller, and component should have a single, well-defined responsibility.
+19. **Centralized Error Handling**: Use structured Express error middleware and unified JSON response formats.
+20. **Avoid Overengineering**: Prefer simple, readable, and robust TypeScript code over premature abstractions.
+21. **Documentation-Driven Development**:
     - Update `docs/STATUS.md` whenever a feature is completed.
     - Update `docs/API.md` when endpoints are added or modified.
     - Update `docs/ARCHITECTURE.md` and `docs/AI_RAG.md` if architectural decisions evolve.

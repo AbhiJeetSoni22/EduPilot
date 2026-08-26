@@ -20,10 +20,17 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
       queryContext
     );
 
-    // 2. Run master orchestration pipeline
+    // 2. Find last assistant query analysis if previous turn requested clarification
+    const lastAssistantMessage = [...conversation.messages]
+      .reverse()
+      .find((m) => m.role === 'assistant' && m.queryAnalysis);
+    const lastPendingAnalysis = lastAssistantMessage?.queryAnalysis;
+
+    // 3. Run master orchestration pipeline
     const output = await orchestratorService.orchestrate(
       message.trim(),
-      conversation.queryContext
+      conversation.queryContext,
+      lastPendingAnalysis
     );
 
     // 3. Persist conversation turn

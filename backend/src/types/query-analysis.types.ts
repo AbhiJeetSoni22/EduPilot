@@ -67,6 +67,7 @@ export type ChatResponseStatus =
   | 'answer_ready'
   | 'needs_context'
   | 'retrieval_required'
+  | 'retrieval_unavailable'
   | 'error';
 
 export interface ChatResponsePayload {

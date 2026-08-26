@@ -10,6 +10,7 @@ export const config = {
   clientUrl: process.env.CLIENT_URL || 'http://localhost:3004',
   mongodbUri: process.env.MONGODB_URI || 'mongodb://localhost:27017/exam_academic_assistant',
   geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
   jwtSecret: process.env.JWT_SECRET || 'default_dev_secret_change_in_production',
   isProduction: process.env.NODE_ENV === 'production',
 };

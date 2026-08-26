@@ -19,12 +19,12 @@ http://localhost:5000/api
 
 ---
 
-## 2. Conversational AI Chat Endpoints (Phase 3 Active)
+## 2. Conversational AI Chat Endpoints (Phase 3 Implemented & Active)
 
 ### Send Chat Query
 - **Endpoint**: `POST /api/chat`
 - **Access Level**: **Public** (No student authentication required)
-- **Description**: Submits a natural language query with optional conversation session ID and query context. Runs Gemini Query Analysis, context resolution, strategy routing, and returns a grounded response.
+- **Description**: Submits a natural language query with optional conversation session ID and query context. Runs Gemini Query Analysis, parameter sanitization, context resolution, controlled academic service execution, and returns a grounded response.
 - **Request Body**:
 ```json
 {
@@ -37,7 +37,7 @@ http://localhost:5000/api
 }
 ```
 
-- **Response `200 OK` (Answer Ready)**:
+- **Response `200 OK` (Answer Ready — Structured / Direct)**:
 ```json
 {
   "success": true,
@@ -58,7 +58,8 @@ http://localhost:5000/api
       "confidenceScore": 0.95,
       "reasoningSummary": "Exam schedule query with complete cohort context."
     },
-    "response": "📝 **Upcoming Examination Timetable (CSE Sem 5)**\n\n• **CS501 Database Management Systems**\n  📅 Mon, Oct 20, 2025 | ⏰ 09:30 AM - 12:30 PM\n  📍 Venue: Hall A-102 | Shift: Morning"
+    "response": "📝 **Scheduled Examination Timetable**\n\n• **CS501: Database Management Systems**\n  📅 Date: **Mon, Oct 20, 2025**\n  ⏰ Time: 09:30 AM – 12:30 PM\n  📍 Venue: Hall A-102 | Type: Mid-Semester",
+    "data": [...]
   },
   "message": "Query processed successfully"
 }
@@ -87,6 +88,27 @@ http://localhost:5000/api
 }
 ```
 
+- **Response `200 OK` (Phase 4 Retrieval Boundary)**:
+```json
+{
+  "success": true,
+  "data": {
+    "status": "retrieval_unavailable",
+    "conversationId": "conv_4a8b-1234",
+    "queryAnalysis": {
+      "intent": "attendance_policy",
+      "entities": {},
+      "requiredContext": [],
+      "providedContext": [],
+      "missingContext": [],
+      "retrievalStrategy": "vector"
+    },
+    "response": "This policy query (attendance policy) requires deep semantic searching across official institutional PDF circulars and student handbooks.\n\nℹ️ *Vector-based knowledge retrieval and citation extraction will be available in Phase 4 (Academic RAG & Vector Search).*"
+  },
+  "message": "Query processed successfully"
+}
+```
+
 ### Retrieve Conversation Thread
 - **Endpoint**: `GET /api/chat/:id`
 - **Access Level**: **Public**
@@ -106,6 +128,7 @@ http://localhost:5000/api
       {
         "role": "assistant",
         "content": "Please specify your department and semester (e.g. CSE semester 5).",
+        "queryAnalysis": { ... },
         "timestamp": "2026-08-26T12:00:01.000Z"
       }
     ],

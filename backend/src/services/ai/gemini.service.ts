@@ -1,12 +1,4 @@
-import dns from 'dns';
 import { config } from '../../config/env';
-
-// Configure DNS servers for reliable Google API resolution on Windows
-try {
-  dns.setServers(['8.8.8.8', '1.1.1.1', '8.8.4.4']);
-} catch {
-  // Ignore in environments where setServers is restricted
-}
 
 export interface GeminiGenerateOptions {
   systemInstruction?: string;
@@ -18,20 +10,23 @@ export interface GeminiGenerateOptions {
 
 export class GeminiService {
   private apiKey: string;
-  private primaryModel: string = 'gemini-2.5-flash';
-  private fallbackModels: string[] = [
-    'gemini-1.5-flash',
-    'gemini-2.0-flash',
-    'gemini-2.5-pro',
-    'gemini-flash-latest',
-  ];
+  private primaryModel: string;
+  private fallbackModels: string[] = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
 
   constructor() {
     this.apiKey = config.geminiApiKey;
+    this.primaryModel = config.geminiModel || 'gemini-1.5-flash';
   }
 
   public isConfigured(): boolean {
-    return Boolean(this.apiKey && this.apiKey.length > 8);
+    const key = this.apiKey || config.geminiApiKey;
+    return Boolean(
+      key &&
+      key.length > 20 &&
+      !key.includes('placeholder') &&
+      !key.includes('your_api_key') &&
+      process.env.DISABLE_GEMINI !== 'true'
+    );
   }
 
   /**
