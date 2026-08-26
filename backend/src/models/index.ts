@@ -1,2 +1,9 @@
-// Mongoose schemas (User, Exam, Subject, Assignment, Regulation, ChatSession) will be exported here in Phase 2
-export {};
+export * from './user.model';
+export * from './department.model';
+export * from './program.model';
+export * from './subject.model';
+export * from './exam.model';
+export * from './assignment.model';
+export * from './academic-calendar.model';
+export * from './regulation.model';
+export * from './document.model';
