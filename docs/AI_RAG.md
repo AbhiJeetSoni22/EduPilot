@@ -13,10 +13,10 @@ Student Natural Language Query + Active Context
 [Backend Node.js Orchestrator]
        │
        ├─► 1. Query Analyzer (Gemini NLU / Deterministic Engine)
-       │       - Intent Classification (e.g. `exam_schedule`, `subject_credits`)
+       │       - Intent Classification (e.g. `exam_schedule`, `subject_credits`, `assignment_deadlines`)
        │       - Entity Extraction (Subject: `CS501`, Dept: `CSE`, Sem: `5`)
        │       - Context Resolution (Required vs Provided vs Missing)
-       │       - Multi-turn pending intent follow-up resolution
+       │       - Deterministic pending intent preservation (no synthetic queries)
        │       - Retrieval Strategy Assignment
        │
        ├─► 2. Schema Validation & Parameter Sanitization
@@ -106,21 +106,22 @@ export interface QueryAnalysis {
 | Strategy | When Used | Example Query | Action Taken |
 | :--- | :--- | :--- | :--- |
 | **`direct`** | General academic concepts, greetings, platform help where database search is unnecessary. | *"What is DBMS?"*, *"Hello"* | Directly explains concept; zero institutional facts fabricated. Status: `answer_ready`. |
-| **`structured`** | Facts residing in MongoDB structured collections (credits, exam timetables, assignment deadlines, calendar milestones). | *"How many credits does DBMS have?"*, *"When is the CSE Sem 5 exam?"* | Node.js sanitizes parameters and executes Mongoose service queries; `ResponseGeneratorService` synthesizes grounded answer. Status: `answer_ready`. |
+| **`structured`** | Facts residing in MongoDB structured collections (credits, subjects offered, exam timetables, assignment deadlines, calendar milestones). | *"How many credits does DBMS have?"*, *"When is the CSE Sem 5 exam?"* | Node.js sanitizes parameters and executes Mongoose service queries; `ResponseGeneratorService` synthesizes grounded answer. Status: `answer_ready`. |
 | **`clarification`** | Critical required parameters are missing to answer the query accurately. | *"When is my exam?"* (no context) | Returns `status: "needs_context"` with targeted prompt asking for department/semester. |
 | **`vector`** | Institutional policies, regulations, circulars, handbooks intended for semantic document retrieval. | *"What is the attendance condonation policy?"* | Explicitly recognized as Phase 4 capability. Returns `status: "retrieval_unavailable"`. No fake search. |
 | **`hybrid`** | Combined inquiries requiring both structured dates/credits AND syllabus/handbook document chapters. | *"When is the DBMS exam and what topics are covered?"* | Returns structured baseline + Phase 4 document notice. Status: `retrieval_unavailable`. |
 
 ---
 
-## 4. Context Resolution & Multi-Turn Follow-Up Loop
+## 4. Context Resolution & Multi-Turn Continuation Loop
 
 1. **Minimal Intrusion Principle**: The system **never** asks for student context if the query does not genuinely require it (e.g. asking *"What is DBMS?"* never prompts for department or roll number).
-2. **Context Retention & Reuse**: If a student states *"I am in CSE semester 5"*, that context is saved to the session. Subsequent queries like *"What exams do I have?"* resolve immediately to `structured` without re-prompting.
-3. **Multi-Turn Follow-up Resolution**:
-   - Step 1: User asks *"When is my next exam?"* -> System detects `intent: exam_schedule`, `missingContext: ['department', 'semester']`, `status: needs_context`.
-   - Step 2: User replies *"CSE semester 5"* -> System merges context, detects pending `exam_schedule` intent, transitions to `structured`, executes `ExamService.findExams`, and delivers the verified timetable without asking the user to repeat the question.
-4. **Roll Number is NOT Authentication**: A roll number is treated as an optional cohort filter, never as an identity verification token.
+2. **Context Retention & Reuse**: If a student states *"I am in CSE semester 5"*, that context is saved to the session. Subsequent queries like *"What exams do I have?"* or *"What assignments do I have?"* resolve immediately to `structured` without re-prompting.
+3. **Deterministic Clarification Continuation**:
+   - Turn 1: User asks *"When is my next exam?"* -> System detects `intent: exam_schedule`, `missingContext: ['department', 'semester']`, `status: needs_context`.
+   - Turn 2: User replies *"CSE semester 5"* in the same conversation -> Backend preserves the pending `exam_schedule` intent, merges newly supplied entities, recalculates `missingContext: []`, transitions to `structured`, executes `ExamService.findExams`, and delivers the timetable without requiring the student to repeat the question or executing synthetic queries.
+4. **Context Updates**: If a student states *"Actually I am in semester 6"*, `semester` updates to `6` while preserving existing `department` context without overwriting fields with undefined.
+5. **Roll Number is NOT Authentication**: A roll number is treated as an optional cohort filter, never as an identity verification token.
 
 ---
 

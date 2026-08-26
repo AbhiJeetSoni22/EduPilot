@@ -24,7 +24,7 @@ http://localhost:5000/api
 ### Send Chat Query
 - **Endpoint**: `POST /api/chat`
 - **Access Level**: **Public** (No student authentication required)
-- **Description**: Submits a natural language query with optional conversation session ID and query context. Runs Gemini Query Analysis, parameter sanitization, context resolution, controlled academic service execution, and returns a grounded response.
+- **Description**: Submits a natural language query with optional conversation session ID and query context. Runs Gemini Query Analysis, parameter sanitization, deterministic context continuation, controlled academic service execution, and returns a grounded response.
 - **Request Body**:
 ```json
 {

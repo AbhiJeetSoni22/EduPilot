@@ -32,37 +32,53 @@ export class OrchestratorService {
     existingContext: QueryContext = {},
     lastPendingAnalysis?: QueryAnalysis
   ): Promise<OrchestratorOutput> {
-    // 1. Check if user is answering a previous clarification prompt
+    // 1. Analyze user's incoming message against existingContext
     let analysis = await queryAnalyzerService.analyzeQuery(
       message,
       existingContext
     );
 
-    // If student sent a brief context response ("CSE semester 5") and there was a pending intent
+    // 2. Deterministic Clarification Continuation:
+    // If previous turn requested clarification, preserve original pending intent and merge new entities
     if (
-      (analysis.intent === 'context_response' || analysis.intent === 'unknown' || analysis.retrievalStrategy === 'clarification') &&
       lastPendingAnalysis &&
-      lastPendingAnalysis.intent !== 'general_inquiry'
+      lastPendingAnalysis.retrievalStrategy === 'clarification' &&
+      (analysis.intent === 'context_response' ||
+        analysis.intent === 'general_inquiry' ||
+        analysis.intent === 'unknown' ||
+        analysis.retrievalStrategy === 'clarification')
     ) {
-      // Re-evaluate with the merged context for the pending intent
-      const mergedQueryContext: QueryContext = {
-        ...existingContext,
-        department: analysis.entities.department || existingContext.department,
-        semester: analysis.entities.semester || existingContext.semester,
-        subject: analysis.entities.subject || existingContext.subject,
+      // Deterministically merge newly extracted entities over pending analysis entities & existingContext
+      const mergedEntities = {
+        ...lastPendingAnalysis.entities,
+        ...(analysis.entities.department ? { department: analysis.entities.department } : {}),
+        ...(analysis.entities.semester !== undefined && analysis.entities.semester !== null ? { semester: analysis.entities.semester } : {}),
+        ...(analysis.entities.subject ? { subject: analysis.entities.subject } : {}),
+        ...(analysis.entities.subjectCode ? { subjectCode: analysis.entities.subjectCode } : {}),
+        ...(analysis.entities.program ? { program: analysis.entities.program } : {}),
+        ...(analysis.entities.academicYear ? { academicYear: analysis.entities.academicYear } : {}),
       };
 
-      // Construct simulated query for the pending intent with the updated context
-      const reAnalysis = await queryAnalyzerService.analyzeQuery(
-        `Check ${lastPendingAnalysis.intent.replace(/_/g, ' ')}`,
-        mergedQueryContext
-      );
-      // Inherit original pending intent if re-analysis produced generic
-      if (reAnalysis.intent === 'general_inquiry' || reAnalysis.intent === 'unknown') {
-        reAnalysis.intent = lastPendingAnalysis.intent;
-        reAnalysis.requiredContext = lastPendingAnalysis.requiredContext;
-      }
-      analysis = reAnalysis;
+      // Recalculate provided context
+      const provided = new Set<string>();
+      if (mergedEntities.department || existingContext.department) provided.add('department');
+      if (mergedEntities.semester !== undefined || existingContext.semester !== undefined) provided.add('semester');
+      if (mergedEntities.subject || existingContext.subject) provided.add('subject');
+      if (mergedEntities.subjectCode) provided.add('subject');
+
+      // Check required context from the original pending analysis
+      const required = lastPendingAnalysis.requiredContext || ['department', 'semester'];
+      const missing = required.filter((req) => !provided.has(req.toLowerCase()));
+
+      analysis = {
+        ...lastPendingAnalysis,
+        entities: mergedEntities,
+        providedContext: Array.from(provided),
+        missingContext: missing,
+        retrievalStrategy: missing.length === 0 ? 'structured' : 'clarification',
+        confidenceScore: 0.95,
+        reasoningSummary: `Preserved pending intent "${lastPendingAnalysis.intent}" with updated cohort context.`,
+      };
     }
 
     const { retrievalStrategy, missingContext, intent, entities } = analysis;

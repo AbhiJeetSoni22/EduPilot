@@ -31,8 +31,9 @@ To maintain high code quality, security, and architectural integrity across **Ed
 13. **Dedicated Service Query Routing**: Gemini must **never** generate raw database queries (`$where`, SQL, or unrestricted Mongoose query objects). Route all structured lookups strictly through dedicated, strongly typed backend services (`SubjectService`, `ExamService`, `AssignmentService`, `AcademicCalendarService`, `RegulationService`).
 14. **Mandatory Parameter Sanitization**: Sanitize all entity inputs using `ParameterValidator` before passing parameters into database query filters.
 15. **Zero Hallucination of Institutional Facts**: Responses must be grounded strictly in verified database records. If records are unavailable, explicitly inform the user that no matching data was found. Never invent exam dates, venues, credit counts, or university policies.
-16. **Clean Production Configuration**: Application code must never modify system DNS configurations (e.g. `dns.setServers`). Environment-specific workarounds must remain isolated in test runners.
-17. **Deterministic Mocking in Tests**: Test suites must support deterministic query analysis and response formatting without mandatory dependence on live third-party network quotas.
+16. **Deterministic Clarification Continuation**: When a query requires clarification, preserve the original pending intent and merge newly supplied entities deterministically across conversation turns without synthetic queries.
+17. **Clean Production Configuration**: Application code must never modify system DNS configurations (e.g. `dns.setServers`). Environment-specific workarounds must remain isolated in test runners.
+18. **Deterministic Mocking in Tests**: Test suites must support deterministic query analysis and response formatting without mandatory dependence on live third-party network quotas.
 
 ---
 

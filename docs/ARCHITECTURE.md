@@ -23,7 +23,7 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
             ├─► 1. Session & Context Resolution (ConversationService)
             │       - Retrieve active session by conversationId
             │       - Merge existing session context with incoming queryContext
-            │       - Identify pending intents for multi-turn follow-ups
+            │       - Preserve pending intent during clarification without synthetic queries
             │
             ├─► 2. AI Query Analyzer (QueryAnalyzerService)
             │       - System Instruction & Few-Shot Prompts
@@ -35,11 +35,11 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
             │       ├── [ClarificationHandler]  ──► Returns status: "needs_context" + missingContext
             │       ├── [DirectHandler]         ──► Returns concept explanation / greeting
             │       ├── [StructuredHandler]     ──► ParameterValidator (Sanitization)
-            │       │                                 ├── SubjectService          ──► MongoDB
-            │       │                                 ├── ExamService             ──► MongoDB
-            │       │                                 ├── AssignmentService       ──► MongoDB
-            │       │                                 ├── AcademicCalendarService ──► MongoDB
-            │       │                                 └── RegulationService       ──► MongoDB
+            │       │                                 ├── SubjectService          ──► MongoDB (Dept/Sem/Subj)
+            │       │                                 ├── ExamService             ──► MongoDB (Dept/Sem/Subj)
+            │       │                                 ├── AssignmentService       ──► MongoDB (Dept/Sem/Subj)
+            │       │                                 ├── AcademicCalendarService ──► MongoDB (Events)
+            │       │                                 └── RegulationService       ──► MongoDB (Rules)
             │       │                                      │
             │       │                                      ▼
             │       │                           [ResponseGeneratorService]
@@ -145,12 +145,12 @@ Student Message + Existing Context
 ### Implemented in Phase 3
 - **Gemini Service**: Isolated backend caller with structured JSON generation and timeout handling (`config.geminiModel`).
 - **Query Analyzer Service**: Real-time NLU classification, entity parsing, context resolution, and strategy assignment.
-- **Academic Query Services**: Dedicated `SubjectService`, `ExamService`, `AssignmentService`, `AcademicCalendarService`, and `RegulationService`.
+- **Academic Query Services**: Dedicated `SubjectService`, `ExamService`, `AssignmentService`, `AcademicCalendarService`, and `RegulationService` with departmental and program filtering.
 - **Parameter Validation & Sanitization**: `ParameterValidator` preventing query injection and regex attacks.
 - **Zero-Hallucination Response Generator**: `ResponseGeneratorService` grounding responses strictly in verified MongoDB records.
-- **Multi-Turn Context Clarification**: Context merging and pending intent re-evaluation.
+- **Deterministic Multi-Turn Context Continuation**: Preserves pending `queryAnalysis` intent across clarification turns without synthetic query strings.
 - **Conversation State**: Mongoose `Conversation` model with message histories and accumulated `queryContext`.
-- **Public Chat API & UI**: `POST /api/chat`, `GET /api/chat/:id`, and interactive `ChatInterface.tsx` frontend component.
+- **Public Chat API & UI**: `POST /api/chat`, `GET /api/chat/:id`, and interactive `ChatInterface.tsx` frontend component with 2-column home page layout.
 
 ### Scheduled for Phase 4 (Academic RAG & Vector Search)
 - PDF document parsing, text extraction, and chunking with token overlap.

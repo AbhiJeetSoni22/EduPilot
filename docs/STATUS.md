@@ -34,20 +34,21 @@ This tracker reflects the current implementation milestones and roadmap for the 
 - [x] Isolated Gemini AI Service (`GeminiService`) with dynamic model selection and timeout protection
 - [x] Strongly typed Query Analysis schema & validation (`validateAndNormalizeQueryAnalysis`)
 - [x] Query Analyzer service (`QueryAnalyzerService`) with context resolution & missing-context detection
-- [x] Dedicated Academic Services (`SubjectService`, `ExamService`, `AssignmentService`, `AcademicCalendarService`, `RegulationService`)
+- [x] Dedicated Academic Services (`SubjectService`, `ExamService`, `AssignmentService`, `AcademicCalendarService`, `RegulationService`) with department/program/semester filtering
 - [x] Parameter Validator & Sanitizer (`ParameterValidator`) preventing query injection
 - [x] Zero-hallucination Grounded Response Generator (`ResponseGeneratorService`)
-- [x] Multi-turn context clarification and resolution loop (pending intent re-evaluation)
+- [x] Deterministic multi-turn context clarification continuation (pending intent preserved without synthetic queries)
+- [x] Context merging rules (safe updates without null/undefined overwrites)
 - [x] Strategy handlers:
   - [x] `DirectHandler` (concept definitions, greetings, capabilities)
-  - [x] `StructuredHandler` (curriculum credits, exam schedules, deadlines, calendar queries)
+  - [x] `StructuredHandler` (curriculum credits, subjects offered, exam timetables, assignment deadlines, calendar milestones)
   - [x] `ClarificationHandler` (context-soliciting interactive prompts)
   - [x] `VectorHandler` (`retrieval_unavailable` Phase 4 boundary)
   - [x] `HybridHandler` (structured baseline + Phase 4 boundary)
 - [x] Conversation session persistence (`Conversation` Mongoose model & `ConversationService`)
 - [x] Public Chat API (`POST /api/chat`, `GET /api/chat/:id`)
-- [x] Interactive Frontend Student Chat Interface (`ChatInterface.tsx`)
-- [x] Comprehensive 12-case end-to-end integration test suite (`npm run test:integration`)
+- [x] Interactive Frontend Student Chat Interface (`ChatInterface.tsx`) with 2-column home page layout
+- [x] Comprehensive 16-case end-to-end integration test suite (`npm run test:integration`)
 - [x] Clean architecture without development-only DNS hacks in application code
 
 ---

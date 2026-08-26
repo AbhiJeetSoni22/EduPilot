@@ -1,9 +1,12 @@
+import mongoose from 'mongoose';
 import { Conversation, IConversation, IMessage } from '../models/conversation.model';
 import { QueryContext } from '../types/query-context';
 import { QueryAnalysis } from '../types/query-analysis.types';
 import crypto from 'crypto';
 
 export class ConversationService {
+  private inMemoryStore: Map<string, IConversation> = new Map();
+
   /**
    * Retrieves an existing conversation or creates a fresh session if not found.
    */
@@ -12,24 +15,48 @@ export class ConversationService {
     initialContext?: QueryContext
   ): Promise<IConversation> {
     const id = conversationId || `conv_${crypto.randomUUID()}`;
+    const isDbConnected = mongoose.connection.readyState === 1;
 
-    let conversation = await Conversation.findOne({ conversationId: id });
-    if (!conversation) {
-      conversation = new Conversation({
+    if (isDbConnected) {
+      try {
+        let conversation = await Conversation.findOne({ conversationId: id });
+        if (!conversation) {
+          conversation = new Conversation({
+            conversationId: id,
+            messages: [],
+            queryContext: initialContext || {},
+            lastActiveAt: new Date(),
+          });
+          await conversation.save();
+        } else if (initialContext && Object.keys(initialContext).length > 0) {
+          conversation.queryContext = this.mergeContext(conversation.queryContext, initialContext);
+          conversation.lastActiveAt = new Date();
+          await conversation.save();
+        }
+        return conversation;
+      } catch (err) {
+        console.warn('[ConversationService] Database query failed, using in-memory store:', err);
+      }
+    }
+
+    // In-memory fallback
+    let conv = this.inMemoryStore.get(id);
+    if (!conv) {
+      conv = {
         conversationId: id,
         messages: [],
         queryContext: initialContext || {},
         lastActiveAt: new Date(),
-      });
-      await conversation.save();
+        createdAt: new Date(),
+        save: async () => conv!,
+      } as unknown as IConversation;
+      this.inMemoryStore.set(id, conv);
     } else if (initialContext && Object.keys(initialContext).length > 0) {
-      // Merge initial context if supplied
-      conversation.queryContext = this.mergeContext(conversation.queryContext, initialContext);
-      conversation.lastActiveAt = new Date();
-      await conversation.save();
+      conv.queryContext = this.mergeContext(conv.queryContext, initialContext);
+      conv.lastActiveAt = new Date();
     }
 
-    return conversation;
+    return conv;
   }
 
   /**
@@ -76,7 +103,17 @@ export class ConversationService {
     }
 
     conversation.lastActiveAt = now;
-    await conversation.save();
+
+    if (mongoose.connection.readyState === 1 && typeof (conversation as any).save === 'function') {
+      try {
+        await conversation.save();
+      } catch (err) {
+        console.warn('[ConversationService] Failed to persist conversation turn to DB:', err);
+      }
+    } else {
+      this.inMemoryStore.set(conversation.conversationId, conversation);
+    }
+
     return conversation;
   }
 

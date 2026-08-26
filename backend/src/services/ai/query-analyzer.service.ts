@@ -60,13 +60,17 @@ export class QueryAnalyzerService {
     message: string
   ): QueryAnalysis {
     const activeDept = analysis.entities.department || existingContext.department;
-    const activeSem = analysis.entities.semester || existingContext.semester;
+    const activeSem = analysis.entities.semester !== undefined ? analysis.entities.semester : existingContext.semester;
     const activeSubj = analysis.entities.subject || analysis.entities.subjectCode || existingContext.subject;
     const activeRoll = analysis.entities.subject ? undefined : existingContext.rollNumber;
 
+    if (activeDept && !analysis.entities.department) analysis.entities.department = activeDept;
+    if (activeSem !== undefined && analysis.entities.semester === undefined) analysis.entities.semester = activeSem;
+    if (activeSubj && !analysis.entities.subject) analysis.entities.subject = activeSubj;
+
     const provided = new Set<string>(analysis.providedContext);
     if (activeDept) provided.add('department');
-    if (activeSem) provided.add('semester');
+    if (activeSem !== undefined) provided.add('semester');
     if (activeSubj) provided.add('subject');
     if (activeRoll) provided.add('rollnumber');
 
@@ -153,7 +157,7 @@ export class QueryAnalyzerService {
       };
     }
 
-    // 3. Subject Credits Queries
+    // 3. Subject Credits & Subject Listing Queries
     if (/credits?|credit value|how many credits/i.test(lower)) {
       const subjectMatch = lower.match(/(dbms|cs501|operating systems|computer networks|software engineering)/i);
       const subject = subjectMatch ? subjectMatch[0].toUpperCase() : existingContext.subject;
@@ -182,7 +186,78 @@ export class QueryAnalyzerService {
       };
     }
 
-    // 4. Hybrid Queries (Exam + Syllabus / Topics)
+    // 4. Subjects Offered / Catalog Listing
+    if (/subjects?\s+(?:are\s+)?(?:offered|available|in|for)|list\s+(?:of\s+)?subjects|courses?\s+(?:in|for)/i.test(lower)) {
+      const deptMatch = lower.match(/\b(cse|computer science|ece|me|ee|civil)\b/i);
+      const semMatch = lower.match(/sem(?:ester)?\s*(\d+)/i) || lower.match(/(\d+)(?:th|st|nd|rd)?\s*sem/i);
+      const dept = deptMatch ? deptMatch[0].toUpperCase() : existingContext.department;
+      const sem = semMatch ? parseInt(semMatch[1], 10) : existingContext.semester;
+
+      return {
+        intent: 'syllabus_breakdown',
+        entities: {
+          department: dept,
+          semester: sem,
+        },
+        requiredContext: ['semester'],
+        providedContext: [
+          ...(dept ? ['department'] : []),
+          ...(sem ? ['semester'] : []),
+        ],
+        missingContext: sem ? [] : ['semester'],
+        retrievalStrategy: sem ? 'structured' : 'clarification',
+        clarificationPrompt: sem ? undefined : 'Which semester subjects would you like to view?',
+        confidenceScore: 0.95,
+        reasoningSummary: 'Curriculum subject offerings lookup for specified cohort.',
+      };
+    }
+
+    // 5. Assignments & Due Dates
+    if (/assignment|homework|project submission|due date/i.test(lower)) {
+      const deptMatch = lower.match(/\b(cse|computer science|ece|me|ee|civil)\b/i);
+      const semMatch = lower.match(/sem(?:ester)?\s*(\d+)/i) || lower.match(/(\d+)(?:th|st|nd|rd)?\s*sem/i);
+      const subjMatch = lower.match(/(dbms|cs501|operating systems|computer networks|se)/i);
+
+      const dept = deptMatch ? deptMatch[0].toUpperCase() : existingContext.department;
+      const sem = semMatch ? parseInt(semMatch[1], 10) : existingContext.semester;
+      const subj = subjMatch ? subjMatch[0].toUpperCase() : existingContext.subject;
+
+      return {
+        intent: 'assignment_deadlines',
+        entities: {
+          department: dept,
+          semester: sem,
+          subject: subj,
+        },
+        requiredContext: ['semester'],
+        providedContext: [
+          ...(dept ? ['department'] : []),
+          ...(sem ? ['semester'] : []),
+          ...(subj ? ['subject'] : []),
+        ],
+        missingContext: sem ? [] : ['semester'],
+        retrievalStrategy: sem ? 'structured' : 'clarification',
+        clarificationPrompt: sem ? undefined : 'Please specify your semester to view active assignments.',
+        confidenceScore: 0.95,
+        reasoningSummary: 'Assignment deadline query.',
+      };
+    }
+
+    // 6. Academic Calendar & Term Events
+    if (/academic calendar|calendar events?|holiday|vacation|term start|term end|semester dates/i.test(lower)) {
+      return {
+        intent: 'academic_calendar',
+        entities: {},
+        requiredContext: [],
+        providedContext: [],
+        missingContext: [],
+        retrievalStrategy: 'structured',
+        confidenceScore: 0.96,
+        reasoningSummary: 'Institutional academic calendar and milestone event lookup.',
+      };
+    }
+
+    // 7. Hybrid Queries (Exam + Syllabus / Topics)
     if (/exam.*(?:topics?|syllabus|included)|syllabus.*(?:exam|timetable)/i.test(lower)) {
       const subjectMatch = lower.match(/(dbms|cs501|operating systems|computer networks)/i);
       return {
@@ -197,7 +272,7 @@ export class QueryAnalyzerService {
       };
     }
 
-    // 5. Policy & Regulations (Attendance, Grading, Promotion)
+    // 8. Policy & Regulations (Attendance, Grading, Promotion)
     if (/attendance|condonation|minimum attendance|75%|medical leave/i.test(lower)) {
       return {
         intent: 'attendance_policy',
@@ -224,15 +299,15 @@ export class QueryAnalyzerService {
       };
     }
 
-    // 6. Exam Schedules
+    // 9. Exam Schedules
     if (/exam|timetable|test|mid-term|end-term|schedule/i.test(lower)) {
-      const deptMatch = lower.match(/(cse|computer science|ece|me|ee|civil)/i);
+      const deptMatch = lower.match(/\b(cse|computer science|ece|me|ee|civil)\b/i);
       const semMatch = lower.match(/sem(?:ester)?\s*(\d+)/i) || lower.match(/(\d+)(?:th|st|nd|rd)?\s*sem/i);
       const subjMatch = lower.match(/(dbms|cs501|operating systems|computer networks)/i);
 
       const dept = deptMatch ? deptMatch[0].toUpperCase() : existingContext.department;
       const sem = semMatch ? parseInt(semMatch[1], 10) : existingContext.semester;
-      const subj = subjMatch ? subjMatch[0].toUpperCase() : undefined;
+      const subj = subjMatch ? subjMatch[0].toUpperCase() : existingContext.subject;
 
       const hasSufficientContext = Boolean(subj || (dept && sem));
 
@@ -280,20 +355,28 @@ export class QueryAnalyzerService {
       };
     }
 
-    // 7. Context Response (Student answering with "CSE semester 5" or "Roll 101")
-    const deptMatch = lower.match(/(cse|computer science|ece|me|ee|civil)/i);
+    // 10. Context Response / Update (e.g. "Actually I am in semester 6", "CSE semester 5")
+    const deptMatch = lower.match(/\b(cse|computer science|ece|me|ee|civil)\b/i);
     const semMatch = lower.match(/sem(?:ester)?\s*(\d+)/i) || lower.match(/(\d+)(?:th|st|nd|rd)?\s*sem/i);
-    if (deptMatch || semMatch) {
+    const rollMatch = lower.match(/roll\s*(?:no|number)?\s*[:=]?\s*([a-z0-9]+)/i);
+
+    if (deptMatch || semMatch || rollMatch || /actually/i.test(lower)) {
+      const dept = deptMatch ? deptMatch[0].toUpperCase() : undefined;
+      const sem = semMatch ? parseInt(semMatch[1], 10) : undefined;
+      const roll = rollMatch ? rollMatch[1] : undefined;
+
       return {
         intent: 'context_response',
         entities: {
-          department: deptMatch ? deptMatch[0].toUpperCase() : existingContext.department,
-          semester: semMatch ? parseInt(semMatch[1], 10) : existingContext.semester,
+          department: dept,
+          semester: sem,
+          subject: existingContext.subject,
         },
         requiredContext: [],
         providedContext: [
-          ...(deptMatch ? ['department'] : []),
-          ...(semMatch ? ['semester'] : []),
+          ...(dept ? ['department'] : []),
+          ...(sem ? ['semester'] : []),
+          ...(roll ? ['rollnumber'] : []),
         ],
         missingContext: [],
         retrievalStrategy: 'structured',
