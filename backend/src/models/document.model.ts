@@ -7,27 +7,35 @@ export type DocumentType =
   | 'grading_policy'
   | 'syllabus'
   | 'student_handbook'
-  | 'academic_circular';
+  | 'academic_circular'
+  | 'curriculum'
+  | 'general_academic';
 
-export type DocumentStatus = 'uploaded' | 'processing' | 'processed' | 'failed' | 'archived';
+export type DocumentStatus = 'uploaded' | 'processing' | 'ready' | 'processed' | 'failed' | 'archived';
 
 export interface IDocument extends MongooseDocument {
   _id: mongoose.Types.ObjectId;
   title: string;
-  documentType: DocumentType;
-  department?: mongoose.Types.ObjectId;
-  program?: mongoose.Types.ObjectId;
+  originalFileName: string;
+  department: mongoose.Types.ObjectId;
+  program: mongoose.Types.ObjectId;
   semester?: number;
-  academicYear: string;
+  academicYear?: string;
+  documentType?: DocumentType;
   version: string;
   status: DocumentStatus;
-  originalFileName: string;
+  processingError?: string;
+  totalPages?: number;
+  totalChunks?: number;
+  isActive: boolean;
   fileSize: number;
   mimeType: string;
   storageReference: string;
-  uploadedBy: mongoose.Types.ObjectId;
+  uploadedBy?: mongoose.Types.ObjectId;
   tags: string[];
   description?: string;
+  uploadedAt: Date;
+  processedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,6 +45,32 @@ const DocumentModelSchema = new Schema<IDocument>(
     title: {
       type: String,
       required: [true, 'Document title is required'],
+      trim: true,
+    },
+    originalFileName: {
+      type: String,
+      required: [true, 'Original file name is required'],
+      trim: true,
+    },
+    department: {
+      type: Schema.Types.ObjectId,
+      ref: 'Department',
+      required: [true, 'Department is required'],
+    },
+    program: {
+      type: Schema.Types.ObjectId,
+      ref: 'Program',
+      required: [true, 'Program is required'],
+    },
+    semester: {
+      type: Number,
+      min: 1,
+      max: 12,
+      default: null,
+    },
+    academicYear: {
+      type: String,
+      default: '2025-26',
       trim: true,
     },
     documentType: {
@@ -49,30 +83,10 @@ const DocumentModelSchema = new Schema<IDocument>(
         'syllabus',
         'student_handbook',
         'academic_circular',
+        'curriculum',
+        'general_academic',
       ],
-      required: [true, 'Document type is required'],
-    },
-    department: {
-      type: Schema.Types.ObjectId,
-      ref: 'Department',
-      default: null,
-    },
-    program: {
-      type: Schema.Types.ObjectId,
-      ref: 'Program',
-      default: null,
-    },
-    semester: {
-      type: Number,
-      min: 1,
-      max: 12,
-      default: null,
-    },
-    academicYear: {
-      type: String,
-      required: [true, 'Academic year is required'],
-      default: '2025-26',
-      trim: true,
+      default: 'general_academic',
     },
     version: {
       type: String,
@@ -81,13 +95,24 @@ const DocumentModelSchema = new Schema<IDocument>(
     },
     status: {
       type: String,
-      enum: ['uploaded', 'processing', 'processed', 'failed', 'archived'],
+      enum: ['uploaded', 'processing', 'ready', 'processed', 'failed', 'archived'],
       default: 'uploaded',
     },
-    originalFileName: {
+    processingError: {
       type: String,
-      required: [true, 'Original file name is required'],
-      trim: true,
+      default: null,
+    },
+    totalPages: {
+      type: Number,
+      default: 0,
+    },
+    totalChunks: {
+      type: Number,
+      default: 0,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
     fileSize: {
       type: Number,
@@ -96,6 +121,7 @@ const DocumentModelSchema = new Schema<IDocument>(
     mimeType: {
       type: String,
       required: [true, 'MIME type is required'],
+      default: 'application/pdf',
     },
     storageReference: {
       type: String,
@@ -105,7 +131,7 @@ const DocumentModelSchema = new Schema<IDocument>(
     uploadedBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Uploader reference is required'],
+      default: null,
     },
     tags: {
       type: [String],
@@ -116,14 +142,24 @@ const DocumentModelSchema = new Schema<IDocument>(
       default: '',
       trim: true,
     },
+    uploadedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    processedAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
+    collection: 'documents',
   }
 );
 
+DocumentModelSchema.index({ department: 1, program: 1, status: 1 });
 DocumentModelSchema.index({ documentType: 1, academicYear: 1, status: 1 });
-DocumentModelSchema.index({ department: 1, program: 1 });
+DocumentModelSchema.index({ isActive: 1, status: 1 });
 
 export const AcademicDocument: Model<IDocument> =
   mongoose.models.AcademicDocument ||

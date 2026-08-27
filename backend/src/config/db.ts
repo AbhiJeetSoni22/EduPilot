@@ -58,3 +58,14 @@ export function getDatabaseStatus(): {
       return { status: 'disconnected' };
   }
 }
+
+export async function disconnectDatabase(): Promise<void> {
+  try {
+    await mongoose.disconnect();
+    logger.info('MongoDB disconnected cleanly.');
+  } catch (error) {
+    const errMessage = error instanceof Error ? error.message : 'Unknown database error';
+    logger.warn(`Error during MongoDB disconnection: ${errMessage}`);
+  }
+}
+

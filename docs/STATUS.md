@@ -53,12 +53,22 @@ This tracker reflects the current implementation milestones and roadmap for the 
 
 ---
 
-### Phase 4: Academic RAG & Vector Search *(Planned / Next)*
-- [ ] Document ingestion pipeline (PDF parsing & text extraction)
-- [ ] Document chunking & embedding generation (Gemini embeddings)
-- [ ] MongoDB Atlas Vector Search index integration
-- [ ] Hybrid context retrieval (structured DB + vector embeddings)
-- [ ] Citation & source document attribution in responses
+### Phase 4: Academic RAG & Vector Search *(In Progress — Foundation Complete)*
+- [x] Knowledge Base data model (`AcademicDocument` & `KnowledgeChunk`)
+- [x] PDF upload (Protected admin route with Department + Program input)
+- [x] PDF text extraction (Deterministic page-boundary preservation)
+- [x] Chunking (Section-aware & page-aware chunking service)
+- [x] Gemini embeddings (`GeminiEmbeddingProvider`, 768-dim, batch processing)
+- [x] Knowledge chunk storage (`knowledge_chunks` collection with dimension validation)
+- [x] Vector Search service (`VectorSearchService` with `$vectorSearch` pipeline & pre-filtering)
+- [x] Atlas index configuration documented (`docs/atlas_vector_search_index.json` & `docs/AI_RAG.md`)
+- [x] Admin Knowledge Base frontend portal (`/admin/knowledge-base`)
+- [ ] RAG orchestration
+- [ ] Retrieval fallback
+- [ ] Answerability evaluation
+- [ ] Grounded citations
+- [ ] Hybrid retrieval
+- [ ] Full Phase 4 integration
 
 ---
 

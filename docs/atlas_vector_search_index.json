@@ -1,0 +1,38 @@
+{
+  "name": "knowledge_chunks_vector_index",
+  "type": "vectorSearch",
+  "definition": {
+    "fields": [
+      {
+        "type": "vector",
+        "path": "embedding",
+        "numDimensions": 768,
+        "similarity": "cosine"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.department"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.program"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.semester"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.subjectCode"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.academicYear"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.documentType"
+      }
+    ]
+  }
+}

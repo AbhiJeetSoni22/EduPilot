@@ -131,25 +131,22 @@ export interface Regulation {
 export interface AcademicDocumentItem {
   _id: string;
   title: string;
-  documentType:
-    | 'academic_regulations'
-    | 'examination_rules'
-    | 'attendance_policy'
-    | 'grading_policy'
-    | 'syllabus'
-    | 'student_handbook'
-    | 'academic_circular';
+  documentType?: string;
   department?: Department;
   program?: Program;
   semester?: number;
   academicYear: string;
   version: string;
-  status: 'uploaded' | 'processing' | 'processed' | 'failed' | 'archived';
+  status: 'uploaded' | 'processing' | 'ready' | 'processed' | 'failed' | 'archived';
   originalFileName: string;
   fileSize: number;
   mimeType: string;
   storageReference: string;
-  uploadedBy: {
+  totalPages?: number;
+  totalChunks?: number;
+  processingError?: string;
+  processedAt?: string;
+  uploadedBy?: {
     _id: string;
     name: string;
     email: string;
@@ -292,6 +289,17 @@ export const academicService = {
     return apiClient<AcademicDocumentItem[]>(`/documents${qs}`);
   },
   getDocumentById: (id: string) => apiClient<AcademicDocumentItem>(`/documents/${id}`),
+  getDocumentStatus: (id: string) =>
+    apiClient<{
+      id: string;
+      title: string;
+      originalFileName: string;
+      status: string;
+      totalPages: number;
+      totalChunks: number;
+      processingError: string | null;
+      processedAt: string | null;
+    }>(`/documents/${id}/status`),
   uploadDocument: (formData: FormData) =>
     apiClient<AcademicDocumentItem>('/documents/upload', {
       method: 'POST',

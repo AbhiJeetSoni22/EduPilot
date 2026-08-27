@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getDocuments,
   getDocumentById,
+  getDocumentStatus,
   uploadDocument,
   deleteDocument,
   downloadDocument,
@@ -13,6 +14,7 @@ const router = Router();
 
 router.get('/', getDocuments);
 router.get('/:id', getDocumentById);
+router.get('/:id/status', getDocumentStatus);
 router.get('/:id/download', downloadDocument);
 router.post(
   '/upload',

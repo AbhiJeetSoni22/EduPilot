@@ -1,6 +1,6 @@
 # AI & RAG Architecture Specification — Exam & Academic Assistant (EduPilot)
 
-This document details the completed **AI Query Analysis & Orchestration** pipeline (Phase 3) and the planned **Retrieval-Augmented Generation (RAG)** pipeline (Phase 4).
+This document details the completed **AI Query Analysis & Orchestration** pipeline (Phase 3) and the **RAG Knowledge Base & Vector Search Foundation** (Phase 4).
 
 ---
 
@@ -32,8 +32,8 @@ Student Natural Language Query + Active Context
        │       │                   [ResponseGeneratorService]
        │       │                   (Zero-hallucination grounded answer synthesis)
        │       │
-       │       ├── 'vector'        ──► Phase 4 boundary (status: "retrieval_unavailable")
-       │       └── 'hybrid'        ──► Phase 4 boundary (status: "retrieval_unavailable")
+       │       ├── 'vector'        ──► Phase 4 RAG Vector Search
+       │       └── 'hybrid'        ──► Phase 4 Hybrid Orchestration
        │
        └─► 4. Turn Persistence & Response Delivery
                │
@@ -101,53 +101,158 @@ export interface QueryAnalysis {
 
 ---
 
-## 3. Retrieval Strategy Taxonomies & Behaviors
+## 3. Academic RAG Knowledge Base & Vector Search (Phase 4 Foundation Implemented)
 
-| Strategy | When Used | Example Query | Action Taken |
-| :--- | :--- | :--- | :--- |
-| **`direct`** | General academic concepts, greetings, platform help where database search is unnecessary. | *"What is DBMS?"*, *"Hello"* | Directly explains concept; zero institutional facts fabricated. Status: `answer_ready`. |
-| **`structured`** | Facts residing in MongoDB structured collections (credits, subjects offered, exam timetables, assignment deadlines, calendar milestones). | *"How many credits does DBMS have?"*, *"When is the CSE Sem 5 exam?"* | Node.js sanitizes parameters and executes Mongoose service queries; `ResponseGeneratorService` synthesizes grounded answer. Status: `answer_ready`. |
-| **`clarification`** | Critical required parameters are missing to answer the query accurately. | *"When is my exam?"* (no context) | Returns `status: "needs_context"` with targeted prompt asking for department/semester. |
-| **`vector`** | Institutional policies, regulations, circulars, handbooks intended for semantic document retrieval. | *"What is the attendance condonation policy?"* | Explicitly recognized as Phase 4 capability. Returns `status: "retrieval_unavailable"`. No fake search. |
-| **`hybrid`** | Combined inquiries requiring both structured dates/credits AND syllabus/handbook document chapters. | *"When is the DBMS exam and what topics are covered?"* | Returns structured baseline + Phase 4 document notice. Status: `retrieval_unavailable`. |
+### High-Level Ingestion & Retrieval Flow
 
----
-
-## 4. Context Resolution & Multi-Turn Continuation Loop
-
-1. **Minimal Intrusion Principle**: The system **never** asks for student context if the query does not genuinely require it (e.g. asking *"What is DBMS?"* never prompts for department or roll number).
-2. **Context Retention & Reuse**: If a student states *"I am in CSE semester 5"*, that context is saved to the session. Subsequent queries like *"What exams do I have?"* or *"What assignments do I have?"* resolve immediately to `structured` without re-prompting.
-3. **Deterministic Clarification Continuation**:
-   - Turn 1: User asks *"When is my next exam?"* -> System detects `intent: exam_schedule`, `missingContext: ['department', 'semester']`, `status: needs_context`.
-   - Turn 2: User replies *"CSE semester 5"* in the same conversation -> Backend preserves the pending `exam_schedule` intent, merges newly supplied entities, recalculates `missingContext: []`, transitions to `structured`, executes `ExamService.findExams`, and delivers the timetable without requiring the student to repeat the question or executing synthetic queries.
-4. **Context Updates**: If a student states *"Actually I am in semester 6"*, `semester` updates to `6` while preserving existing `department` context without overwriting fields with undefined.
-5. **Roll Number is NOT Authentication**: A roll number is treated as an optional cohort filter, never as an identity verification token.
-
----
-
-## 5. Division of Responsibilities & Zero-Hallucination Policy
-
-### Gemini AI Layer (Server-Side)
-- **Natural Language Understanding**: Deciphers abbreviations, course codes, and informal student phrasing.
-- **Intent & Entity Extraction**: Identifies query goals and extracts parameters.
-- **Strict Constraint**: **Gemini NEVER generates raw MongoDB queries or executes database operations.**
-
-### Node.js Backend Orchestrator & Services
-- **Schema Validation & Normalization**: Guarantees pure, valid JSON conforming to `QueryAnalysis`.
-- **Parameter Sanitization**: `ParameterValidator` cleans all inputs before Mongoose calls.
-- **Controlled Query Execution**: Parameterized calls via `SubjectService`, `ExamService`, `AssignmentService`, `AcademicCalendarService`, `RegulationService`.
-- **Response Generation**: `ResponseGeneratorService` synthesizes grounded answers strictly referencing verified MongoDB data.
-- **Zero-Hallucination Rule**: If MongoDB has no matching record, the system explicitly reports that no matching data was found (e.g. *"I checked the examination schedule, but could not find any exam matching CS999"*).
+```text
+Admin Upload (Department + Program + PDF)
+       │
+       ▼
+[AcademicDocument Record Created (status: 'uploaded')]
+       │
+       ▼
+[PdfExtractorService] ──► Extracts text per page preserving page boundaries (pageNumber: 1, 2, ...)
+       │
+       ▼
+[MetadataExtractorService] ──► Parses semester, subjectCode, subjectName, academicYear, documentType
+       │                      (Immutable: Department & Program are attached from Admin context)
+       ▼
+[ChunkingService] ──► Section- & page-aware chunking (~800 chars, ~120 overlap)
+       │
+       ▼
+[GeminiEmbeddingProvider] ──► Generates 768-dim embeddings in batch via batchEmbedContents
+       │
+       ▼
+[KnowledgeChunk MongoDB Storage] ──► Persists chunks in `knowledge_chunks` with 768-dim validation
+       │
+       ▼
+[AcademicDocument Record Updated] ──► status: 'ready', totalPages, totalChunks, processedAt
+```
 
 ---
 
-## 6. Academic RAG & Vector Search Pipeline (Phase 4 Planned)
+## 4. RAG Knowledge Data Models
+
+### Document Record (`documents` collection)
+- `_id`: ObjectId
+- `title`: string
+- `originalFileName`: string
+- `department`: ObjectId (ref: `Department`)
+- `program`: ObjectId (ref: `Program`)
+- `status`: `'uploaded' | 'processing' | 'ready' | 'failed' | 'archived'`
+- `totalPages`: number
+- `totalChunks`: number
+- `processingError`: string (safe error message, no internal stack traces)
+- `version`: string (e.g. `'1.0'`)
+- `isActive`: boolean
+- `uploadedAt`: Date
+- `processedAt`: Date
+
+### Knowledge Chunk Record (`knowledge_chunks` collection)
+- `_id`: ObjectId
+- `documentId`: ObjectId (ref: `AcademicDocument`)
+- `text`: string (chunk content)
+- `embedding`: number[] (exactly 768 float dimensions)
+- `chunkIndex`: number
+- `pageNumber`: number (where available)
+- `metadata`:
+  - `department`: ObjectId (ref: `Department`)
+  - `program`: ObjectId (ref: `Program`)
+  - `semester`: number (optional)
+  - `subjectCode`: string (optional)
+  - `subjectName`: string (optional)
+  - `academicYear`: string (optional)
+  - `documentType`: string (optional)
+  - `sectionTitle`: string (optional)
+  - `unitNumber`: number (optional)
+
+---
+
+## 5. Gemini Embedding Specification
+
+- **Provider Abstraction**: `EmbeddingProvider` interface implemented by `GeminiEmbeddingProvider`.
+- **Model**: `gemini-embedding-001` (configurable via `GEMINI_EMBEDDING_MODEL`).
+- **Dimensions**: `768` (configurable via `GEMINI_EMBEDDING_DIMENSIONS`).
+- **Similarity Metric**: `cosine`.
+- **Batch Processing**: Groups chunks into batches of up to 50 items using Gemini `batchEmbedContents` endpoint.
+- **Strict Dimension Validation**: Any vector that does not match exactly 768 dimensions causes a safe, graceful rejection.
+
+---
+
+## 6. MongoDB Atlas Vector Search Index Specification
+
+The vector search index is defined on MongoDB Atlas for the `knowledge_chunks` collection.
+
+**Index Configuration (`docs/atlas_vector_search_index.json`):**
+```json
+{
+  "name": "knowledge_chunks_vector_index",
+  "type": "vectorSearch",
+  "definition": {
+    "fields": [
+      {
+        "type": "vector",
+        "path": "embedding",
+        "numDimensions": 768,
+        "similarity": "cosine"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.department"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.program"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.semester"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.subjectCode"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.academicYear"
+      },
+      {
+        "type": "filter",
+        "path": "metadata.documentType"
+      }
+    ]
+  }
+}
+```
 
 > [!NOTE]
-> The RAG pipeline below is scheduled for **Phase 4** and is NOT implemented in Phase 3.
+> The Atlas Vector Search index is configured via MongoDB Atlas / Atlas CLI and is NOT created automatically on application startup.
 
-- **Document Ingestion**: Parsing official PDFs (handbooks, exam rules, syllabus books).
-- **Semantic Chunking**: Partitioning documents with token overlap.
-- **Embeddings Generation**: Transforming chunks into vector embeddings via Gemini embedding models (`text-embedding-004`).
-- **Vector Indexing**: MongoDB Atlas Vector Search indices for cosine similarity search.
-- **Attribution**: Grounded responses with official document name and page number citations.
+---
+
+## 7. Vector Search Service & Metadata Pre-filtering
+
+The `VectorSearchService` executes semantic similarity queries against the `knowledge_chunks` collection using MongoDB's `$vectorSearch` pipeline stage:
+
+```typescript
+const vectorSearchStage = {
+  $vectorSearch: {
+    index: 'knowledge_chunks_vector_index',
+    path: 'embedding',
+    queryVector: queryVector, // 768-dim number[]
+    numCandidates: 50,
+    limit: 5,
+    filter: {
+      'metadata.department': departmentId,
+      'metadata.program': programId,
+      'metadata.semester': 5
+    }
+  }
+};
+```
+
+**Pre-filtering Rules:**
+1. Filters are only applied when fields are explicitly provided in the query context.
+2. If `subjectCode` or `semester` is unknown, it is not forced into the filter.
+3. Department and Program scoping prevents cross-department retrieval leakage.

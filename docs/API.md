@@ -226,12 +226,13 @@ http://localhost:5000/api
 
 ## 6. Knowledge Base & Batch Operations
 
-### Document Management (Knowledge Base)
-- `GET /api/documents` — **Public**
-- `GET /api/documents/:id` — **Public**
-- `GET /api/documents/:id/download` — **Public**
-- `POST /api/documents/upload` — **Admin Protected**
-- `DELETE /api/documents/:id` — **Admin Protected**
+### Document Management (Knowledge Base & RAG Ingestion)
+- `GET /api/documents` — **Public** (List documents with department, program, totalPages, totalChunks, and status)
+- `GET /api/documents/:id` — **Public** (Get document details by ID)
+- `GET /api/documents/:id/status` — **Public** (Get document ingestion status: `{ status, totalPages, totalChunks, processingError }`)
+- `GET /api/documents/:id/download` — **Public** (Download original PDF file)
+- `POST /api/documents/upload` — **Admin Protected** (`multipart/form-data`: `department`, `program`, `file` [PDF]; triggers RAG extraction, chunking, and 768-dim Gemini vector embedding)
+- `DELETE /api/documents/:id` — **Admin Protected** (Deletes document metadata, physical file, and associated `knowledge_chunks`)
 
 ### Bulk Data Import
 - `POST /api/bulk-import/validate` — **Admin Protected**

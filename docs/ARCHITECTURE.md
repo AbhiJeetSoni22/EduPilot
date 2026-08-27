@@ -152,8 +152,63 @@ Student Message + Existing Context
 - **Conversation State**: Mongoose `Conversation` model with message histories and accumulated `queryContext`.
 - **Public Chat API & UI**: `POST /api/chat`, `GET /api/chat/:id`, and interactive `ChatInterface.tsx` frontend component with 2-column home page layout.
 
-### Scheduled for Phase 4 (Academic RAG & Vector Search)
-- PDF document parsing, text extraction, and chunking with token overlap.
-- Vector embedding generation via Gemini embedding models (`text-embedding-004`).
-- MongoDB Atlas Vector Search index integration and semantic retrieval.
-- Exact excerpt citations and source page attribution.
+### Implemented in Phase 4 (Knowledge Base & Vector Search Foundation)
+- **PDF Text Extraction**: Page-boundary preserving extraction via `PdfExtractorService`.
+- **Structure & Metadata Understanding**: Heuristic academic entity extraction via `MetadataExtractorService` with immutable admin context attachment.
+- **Section-Aware Chunking**: `ChunkingService` with configurable window sizes (~800 chars) and overlap (~120 chars).
+- **Gemini Embedding Provider**: `GeminiEmbeddingProvider` producing 768-dimensional vectors with batch processing support.
+- **Knowledge Chunk Storage**: `KnowledgeChunk` model mapping to `knowledge_chunks` collection with strict 768-dimension schema validation.
+- **MongoDB Atlas Vector Search Service**: `VectorSearchService` building `$vectorSearch` aggregation pipelines with dynamic metadata pre-filtering.
+- **Admin Ingestion Interface**: Minimal Department + Program + PDF upload flow in Admin Knowledge Base portal.
+
+### Planned for Phase 4 (Next Steps)
+- Complete RAG response orchestration & prompt grounding with retrieved chunks.
+- Structured DB to Vector Search fallback mechanisms.
+- Grounded citations and exact source attribution (Document title + page number).
+- Answerability evaluation and hybrid retrieval scoring.
+
+---
+
+## 5. Knowledge Base PDF Ingestion Architecture
+
+```text
+Admin Upload Portal (/admin/knowledge-base)
+  Inputs: [Department ID, Program ID, PDF File]
+             │
+             │ POST /api/documents/upload (Admin JWT Auth)
+             ▼
+  [AcademicDocument Mongoose Record Created]
+  (status: 'uploaded', department, program, storageReference)
+             │
+             ▼
+  [DocumentIngestionService.processDocument]
+             │
+             ├─► 1. File Storage Read & Validation
+             │       - Reads PDF from local storage filesystem
+             │       - Sets document status = 'processing'
+             │
+             ├─► 2. PDF Page Extraction (PdfExtractorService)
+             │       - Extracts text array: Array<{ pageNumber, text }>
+             │       - Tracks total page count
+             │
+             ├─► 3. Academic Metadata Analysis (MetadataExtractorService)
+             │       - Extracts optional: semester, subjectCode, subjectName, year, docType
+             │       - Strictly binds immutable Admin Department + Program
+             │
+             ├─► 4. Semantic & Section Chunking (ChunkingService)
+             │       - Splits page text into ~800-character chunks with 120-char overlap
+             │       - Preserves pageNumber and chunkIndex
+             │
+             ├─► 5. Gemini 768-dim Embeddings (GeminiEmbeddingProvider)
+             │       - Calls Gemini batchEmbedContents in batches of up to 50 items
+             │       - Validates exactly 768 floating point dimensions per chunk
+             │
+             ├─► 6. MongoDB Knowledge Chunk Storage
+             │       - Bulk inserts records into `knowledge_chunks` collection
+             │       - Creates compound metadata pre-filter indexes
+             │
+             └─► 7. Document Status Finalization
+                     - Sets status = 'ready', totalPages, totalChunks, processedAt
+                     - In case of failure: status = 'failed' with safe human-readable error
+```
+

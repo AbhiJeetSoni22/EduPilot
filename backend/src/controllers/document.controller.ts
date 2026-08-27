@@ -2,8 +2,10 @@ import { Request, Response } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { AcademicDocument } from '../models/document.model';
+import { KnowledgeChunk } from '../models/knowledge-chunk.model';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { sendSuccess, sendError } from '../utils/response';
+import { documentIngestionService } from '../services/ai/rag/document-ingestion.service';
 
 export async function getDocuments(req: Request, res: Response): Promise<void> {
   try {
@@ -56,74 +58,92 @@ export async function getDocumentById(req: Request, res: Response): Promise<void
   }
 }
 
+export async function getDocumentStatus(req: Request, res: Response): Promise<void> {
+  try {
+    const doc = await AcademicDocument.findById(req.params.id).select(
+      'status totalPages totalChunks processingError processedAt title originalFileName'
+    );
+
+    if (!doc) {
+      sendError(res, 'Document not found', 404, 'NOT_FOUND');
+      return;
+    }
+
+    sendSuccess(res, {
+      id: doc._id,
+      title: doc.title,
+      originalFileName: doc.originalFileName,
+      status: doc.status,
+      totalPages: doc.totalPages || 0,
+      totalChunks: doc.totalChunks || 0,
+      processingError: doc.processingError || null,
+      processedAt: doc.processedAt || null,
+    });
+  } catch (error: unknown) {
+    const errMessage = error instanceof Error ? error.message : 'Failed to fetch document status';
+    sendError(res, errMessage, 500);
+  }
+}
+
 export async function uploadDocument(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
     const file = req.file;
     if (!file) {
-      sendError(res, 'File is required for upload', 400, 'FILE_REQUIRED');
+      sendError(res, 'PDF file is required for upload', 400, 'FILE_REQUIRED');
       return;
     }
 
-    const {
-      title,
-      documentType,
-      department,
-      program,
-      semester,
-      academicYear,
-      version,
-      tags,
-      description,
-    } = req.body;
+    const { department, program, title, description, version, academicYear } = req.body;
 
-    if (!title || !documentType) {
-      // Cleanup uploaded file on validation error
+    if (!department || !program) {
       if (fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
       }
-      sendError(res, 'Title and documentType are required', 400, 'VALIDATION_ERROR');
+      sendError(res, 'Department and Program are required for document ingestion', 400, 'VALIDATION_ERROR');
       return;
     }
 
-    let parsedTags: string[] = [];
-    if (tags) {
-      parsedTags = Array.isArray(tags)
-        ? tags
-        : typeof tags === 'string'
-        ? tags.split(',').map((t) => t.trim()).filter(Boolean)
-        : [];
-    }
-
+    const defaultTitle = title?.trim() || file.originalname.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' ');
     const relativePath = path.relative(process.cwd(), file.path).replace(/\\/g, '/');
 
     const documentRecord = new AcademicDocument({
-      title: title.trim(),
-      documentType,
-      department: department || null,
-      program: program || null,
-      semester: semester ? Number(semester) : null,
+      title: defaultTitle,
+      originalFileName: file.originalname,
+      department,
+      program,
       academicYear: academicYear || '2025-26',
       version: version || '1.0',
       status: 'uploaded',
-      originalFileName: file.originalname,
       fileSize: file.size,
-      mimeType: file.mimetype,
+      mimeType: file.mimetype || 'application/pdf',
       storageReference: relativePath,
-      uploadedBy: req.user?.id,
-      tags: parsedTags,
+      uploadedBy: req.user?.id || null,
       description: description?.trim() || '',
     });
 
     await documentRecord.save();
+
+    // Trigger end-to-end RAG ingestion pipeline
+    const ingestionResult = await documentIngestionService.processDocument(documentRecord._id);
+
     const populated = await AcademicDocument.findById(documentRecord._id)
       .populate('department', 'name code')
       .populate('program', 'name code degreeType')
       .populate('uploadedBy', 'name email role');
 
-    sendSuccess(res, populated, 'Document uploaded and registered successfully', 201);
+    const message =
+      ingestionResult.status === 'ready'
+        ? `Document processed and indexed successfully (${ingestionResult.totalChunks} chunks generated)`
+        : `Document registered, but processing encountered an error: ${ingestionResult.error}`;
+
+    sendSuccess(res, populated, message, 201);
   } catch (error: unknown) {
     if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch {
+        // ignore unlink error
+      }
     }
     const errMessage = error instanceof Error ? error.message : 'Failed to upload document';
     sendError(res, errMessage, 500);
@@ -138,18 +158,23 @@ export async function deleteDocument(req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Attempt to unlink physical file if exists
+    // Delete stored PDF file from filesystem
     const absolutePath = path.resolve(process.cwd(), doc.storageReference);
     if (fs.existsSync(absolutePath)) {
       try {
         fs.unlinkSync(absolutePath);
       } catch {
-        // Log and continue deletion of metadata
+        // Log and continue
       }
     }
 
+    // Delete all associated knowledge chunks
+    await KnowledgeChunk.deleteMany({ documentId: doc._id });
+
+    // Delete document record
     await AcademicDocument.findByIdAndDelete(req.params.id);
-    sendSuccess(res, { id: req.params.id }, 'Document and file deleted successfully');
+
+    sendSuccess(res, { id: req.params.id }, 'Document and associated vector chunks deleted successfully');
   } catch (error: unknown) {
     const errMessage = error instanceof Error ? error.message : 'Failed to delete document';
     sendError(res, errMessage, 500);

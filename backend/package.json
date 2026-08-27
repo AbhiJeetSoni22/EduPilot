@@ -11,10 +11,12 @@
     "test:connections": "tsx src/scripts/test-connections.ts",
     "test:ai": "tsx src/scripts/test-phase3-ai.ts",
     "test:integration": "tsx src/scripts/test-phase3-integration.ts",
+    "test:rag": "tsx src/scripts/test-phase4-rag-ingestion.ts",
     "seed": "tsx src/scripts/seed-academic-data.ts",
     "clean": "rimraf dist"
   },
   "dependencies": {
+    "@types/pdf-parse": "^1.1.5",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "csv-parse": "^7.0.2",
@@ -22,7 +24,8 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.9.5",
-    "multer": "^2.2.0"
+    "multer": "^2.2.0",
+    "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
