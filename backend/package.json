@@ -12,6 +12,7 @@
     "test:ai": "tsx src/scripts/test-phase3-ai.ts",
     "test:integration": "tsx src/scripts/test-phase3-integration.ts",
     "test:rag": "tsx src/scripts/test-phase4-rag-ingestion.ts",
+    "test:rag-integration": "tsx src/scripts/test-phase4-rag-integration.ts",
     "seed": "tsx src/scripts/seed-academic-data.ts",
     "clean": "rimraf dist"
   },

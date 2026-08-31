@@ -164,11 +164,11 @@ export class OrchestratorService {
       };
     }
 
-    // 5. Strategy: Vector (Phase 4 Semantic Document Search)
+    // 5. Strategy: Vector (Academic RAG & Vector Search)
     if (retrievalStrategy === 'vector') {
-      const result = await vectorHandler.handle(message, analysis);
+      const result = await vectorHandler.handle(message, analysis, existingContext);
       return {
-        status: 'retrieval_unavailable',
+        status: 'answer_ready',
         queryAnalysis: analysis,
         response: result.response,
         data: result.data,

@@ -133,6 +133,10 @@ export class VectorSearchService {
     ];
 
     try {
+      if (mongoose.connection.readyState !== 1) {
+        return this.localCosineFallbackSearch(queryVector, filters, options);
+      }
+
       const results = await KnowledgeChunk.aggregate(pipeline);
 
       return results.map((item) => ({
@@ -151,7 +155,8 @@ export class VectorSearchService {
       if (
         errMsg.includes('$vectorSearch is not allowed') ||
         errMsg.includes('Unrecognized pipeline stage') ||
-        errMsg.includes('vectorSearch')
+        errMsg.includes('vectorSearch') ||
+        errMsg.includes('buffering timed out')
       ) {
         return this.localCosineFallbackSearch(queryVector, filters, options);
       }
@@ -179,6 +184,9 @@ export class VectorSearchService {
     filters?: VectorSearchFilters,
     options: VectorSearchOptions = {}
   ): Promise<VectorSearchResult[]> {
+    if (mongoose.connection.readyState !== 1) {
+      return [];
+    }
     const mongoFilter: Record<string, unknown> = {};
     const filterObj = this.buildFilterObject(filters);
     if (filterObj) {

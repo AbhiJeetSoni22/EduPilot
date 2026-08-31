@@ -316,23 +316,23 @@ async function runEndToEndVerification() {
   }
 
   // -------------------------------------------------------------
-  // Test 12 — Vector Strategy (Phase 4 Boundary)
+  // Test 12 — Vector Strategy (Phase 4 Grounded RAG)
   // -------------------------------------------------------------
   try {
     const out = await orchestratorService.orchestrate('What does the university attendance policy say?');
     const ok =
       out.queryAnalysis.retrievalStrategy === 'vector' &&
-      out.status === 'retrieval_unavailable' &&
-      out.response.toLowerCase().includes('phase 4');
+      out.status === 'answer_ready' &&
+      !out.response.includes('will be available in Phase 4');
 
     results.push({
       id: 12,
-      name: 'Vector Strategy (Phase 4 Boundary)',
+      name: 'Vector Strategy (Phase 4 Grounded RAG)',
       passed: ok,
-      details: `strategy=vector, status=retrieval_unavailable`,
+      details: `strategy=vector, status=answer_ready`,
     });
   } catch (err: any) {
-    results.push({ id: 12, name: 'Vector Strategy (Phase 4 Boundary)', passed: false, error: err.message });
+    results.push({ id: 12, name: 'Vector Strategy (Phase 4 Grounded RAG)', passed: false, error: err.message });
   }
 
   // -------------------------------------------------------------
