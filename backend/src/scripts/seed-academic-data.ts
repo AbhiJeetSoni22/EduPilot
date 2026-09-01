@@ -69,6 +69,17 @@ async function seed(): Promise<void> {
       status: 'active',
     });
 
+    const mscAibda = await Program.create({
+      name: 'M.Sc in Artificial Intelligence & Big Data Analytics',
+      code: 'MSC-AIBDA',
+      department: cseDept._id,
+      degreeType: 'Postgraduate',
+      durationYears: 2,
+      totalSemesters: 4,
+      academicYear: '2025-26',
+      status: 'active',
+    });
+
     const btechEce = await Program.create({
       name: 'Bachelor of Technology in Electronics & Communication',
       code: 'BTECH-ECE',
@@ -659,6 +670,7 @@ async function seed(): Promise<void> {
         title: 'Undergraduate Examination Code of Conduct & Proctor Guidelines',
         documentType: 'examination_rules',
         department: cseDept._id,
+        program: btechCse._id,
         academicYear: '2025-26',
         version: '1.1',
         status: 'uploaded',
