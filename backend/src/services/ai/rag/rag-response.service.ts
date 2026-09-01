@@ -64,22 +64,28 @@ export class RagResponseService {
       })
       .join('\n\n---\n\n');
 
-    // 5. Build Grounded Prompt
+    // 5. Build Grounded Prompt with Controlled Cross-Section Synthesis & Completeness Instructions
     const systemInstruction =
-      'You are the official EduPilot Academic Assistant. ' +
-      'Answer the student question clearly, accurately, and authoritatively based STRICTLY on the provided institutional document excerpts. ' +
-      'RULES:\n' +
-      '1. Answer strictly from the provided institutional excerpts. Do not use outside or general knowledge.\n' +
-      '2. Do not invent facts, rules, dates, percentages, or policies.\n' +
-      '3. If the provided excerpts do not contain enough information to answer the question, explicitly state that the available official documents do not provide this information.\n' +
-      '4. Keep the answer clear, structured, and student-friendly.';
+      'You are the official EduPilot Academic Assistant.\n' +
+      'Answer the student question clearly, accurately, and authoritatively based STRICTLY on the provided institutional document excerpts.\n\n' +
+      'CORE GROUNDING & SYNTHESIS RULES:\n' +
+      '1. Strict Document Grounding: Answer ONLY from the provided institutional excerpts. Never use external knowledge, unverified assumptions, or general world knowledge.\n' +
+      '2. Complete Question Coverage: Thoroughly address ALL material aspects requested by the student (e.g., eligibility criteria, required documents, fee amounts, deadlines, and approval authorities) that are supported by the retrieved excerpts.\n' +
+      '3. General vs. Specialized Policy Synthesis: When a student asks about a specialized policy, sub-clause, or circumstance (e.g., medical condonation, late withdrawal, supplementary exam), and the excerpts provide directly applicable general parent-section provisions (such as general processing fees, standard deadlines, or overall condonation rules), include and explain the general provision. Clearly distinguish whether a separate specialized provision is explicitly defined or absent in the text.\n' +
+      '4. Distinguish Explicit vs. Unstated Facts: Differentiate between explicitly stated facts and unstated details. If the document defines a general fee or rule but does not explicitly state a separate specialized fee or rule, state the general rule clearly and clarify that a separate specialized fee/rule is not explicitly specified in the handbook. Never invent a specialized value.\n' +
+      '5. Strict Anti-Hallucination: If any requested fact, department policy, program rule, fee, or date is absent from the excerpts, explicitly state that the official documents do not contain that information. Never invent numbers, percentages, currency amounts, or department-specific rules.\n' +
+      '6. Tone & Format: Provide a structured, clear, and student-friendly response.';
 
     const prompt =
       `INSTITUTIONAL DOCUMENT CONTEXT:\n` +
       `${institutionalContext}\n\n` +
       `STUDENT QUESTION:\n` +
       `${userMessage}\n\n` +
-      `Please provide a helpful, concise, well-structured answer using ONLY the verified facts from the institutional documents above.`;
+      `INSTRUCTIONS FOR SYNTHESIS:\n` +
+      `- Thoroughly address every part of the student's question using all relevant facts from the excerpts above.\n` +
+      `- If general section provisions (e.g., processing fees, application deadlines, approving authority) apply to the subject matter, explain them accurately while noting whether a separate specialized provision is explicitly stated.\n` +
+      `- If any requested topic or fact is not covered in the excerpts, clearly state that it is not specified in the available official documents.\n` +
+      `- Ground every statement strictly in the provided institutional excerpts.`;
 
     let generatedAnswer = '';
 
@@ -90,7 +96,8 @@ export class RagResponseService {
           systemInstruction,
           responseMimeType: 'text/plain',
           temperature: 0.1,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 4096,
+          timeoutMs: 20000,
         });
 
         if (aiResponse && aiResponse.trim()) {

@@ -116,6 +116,17 @@ export class QueryAnalyzerService {
       }
     }
 
+    // Policy & regulation queries (attendance, grading, general academic regulations) without subject course route to vector
+    if (
+      (analysis.intent === 'attendance_policy' ||
+        analysis.intent === 'grading_policy' ||
+        analysis.intent === 'academic_regulation') &&
+      !activeSubj &&
+      analysis.retrievalStrategy === 'hybrid'
+    ) {
+      analysis.retrievalStrategy = 'vector';
+    }
+
     return analysis;
   }
 

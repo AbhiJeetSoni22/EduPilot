@@ -11,7 +11,7 @@ export interface GeminiGenerateOptions {
 export class GeminiService {
   private apiKey: string;
   private primaryModel: string;
-  private fallbackModels: string[] = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-flash-latest'];
+  private fallbackModels: string[] = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
 
   constructor() {
     this.apiKey = config.geminiApiKey;
@@ -94,9 +94,11 @@ export class GeminiService {
         }
 
         const data = await response.json();
-        const textResponse = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        const parts = (data?.candidates?.[0]?.content?.parts || []) as Array<{ text?: string; thought?: boolean }>;
+        const contentParts = parts.filter((p) => !p.thought && typeof p.text === 'string');
+        const textResponse = (contentParts.length > 0 ? contentParts : parts).map((p) => p.text || '').join('').trim();
 
-        if (typeof textResponse !== 'string' || !textResponse.trim()) {
+        if (!textResponse) {
           throw new Error(`Empty response returned by Gemini model ${model}`);
         }
 
