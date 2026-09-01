@@ -216,14 +216,14 @@ async function runVectorRAGIntegrationTests() {
     // TEST GROUP 8: Deterministic Multi-Chunk Fallback Synthesis Tests
     // ----------------------------------------------------------------
     console.log('\n--- Test Group 8: Deterministic Fallback Synthesis & Deduplication ---');
+    const mockMeta: any = { department: new mongoose.Types.ObjectId(), program: new mongoose.Types.ObjectId() };
     const citations = [
       { title: 'Academic Handbook 2025-26', pageNumber: 6, documentId: 'doc1' },
       { title: 'Academic Handbook 2025-26', pageNumber: 7, documentId: 'doc1' },
       { title: 'Academic Handbook 2025-26', pageNumber: 28, documentId: 'doc1' },
     ];
 
-    // Scenario 1: Multi-chunk answer (fee in chunk 2 must not be lost)
-    const mockMeta: any = { department: new mongoose.Types.ObjectId(), program: new mongoose.Types.ObjectId() };
+    // TEST A: Multiple chunks where the requested fact is in chunk #2
     const multiChunks: any[] = [
       {
         _id: 'c1',
@@ -248,13 +248,12 @@ async function runVectorRAGIntegrationTests() {
     const fallbackMulti = ragResponseService.formatDeterministicAnswer(
       multiChunks,
       citations,
-      'What is the medical attendance condonation fee?'
+      'What is the condonation processing fee?'
     );
-    assert(fallbackMulti.includes('Rs. 500'), 'Multi-chunk fallback contains Rs. 500 fee from chunk 2');
-    assert(fallbackMulti.includes('Page 6'), 'Multi-chunk fallback attributes fee to Page 6');
-    assert(fallbackMulti.includes('Page 7'), 'Multi-chunk fallback attributes medical requirements to Page 7');
+    assert(fallbackMulti.includes('Rs. 500'), 'TEST A: Multi-chunk fallback contains fact from chunk #2 (Rs. 500 fee)');
+    assert(fallbackMulti.includes('Page 6'), 'TEST A: Multi-chunk fallback attributes fee to Page 6');
 
-    // Scenario 2: Duplicate fact deduplication (duplicate Rs. 500 statement across chunks)
+    // TEST B: Same fact exists in chunk #2 and chunk #3 (Deduplication)
     const dupChunks: any[] = [
       ...multiChunks,
       {
@@ -268,11 +267,39 @@ async function runVectorRAGIntegrationTests() {
       },
     ];
     const fallbackDup = ragResponseService.formatDeterministicAnswer(dupChunks, citations);
-    assert(fallbackDup.includes('Rs. 500'), 'Deduplicated fallback contains Rs. 500');
+    assert(fallbackDup.includes('Rs. 500'), 'TEST B: Deduplicated fallback contains Rs. 500');
 
-    // Scenario 3: Empty chunks / Missing information
+    // TEST C: General + Specialized policy synthesis for medical condonation fee
+    const fallbackMedicalFee = ragResponseService.formatDeterministicAnswer(
+      dupChunks,
+      citations,
+      'What is the medical attendance condonation fee?'
+    );
+    assert(fallbackMedicalFee.includes('Rs. 500'), 'TEST C: Fallback contains Rs. 500 fee for medical condonation query');
+    assert(fallbackMedicalFee.includes('Page 7'), 'TEST C: Fallback surfaces medical requirements from Page 7');
+    assert(fallbackMedicalFee.includes('Page 6'), 'TEST C: Fallback surfaces general condonation fee from Page 6');
+
+    // TEST D: Missing information / Non-hallucination
     const emptyFallback = ragResponseService.formatDeterministicAnswer([], []);
-    assert(emptyFallback.includes("couldn't find this information"), 'Empty retrieval returns not-found statement');
+    assert(emptyFallback.includes("couldn't find this information"), 'TEST D: Empty retrieval returns not-found statement without hallucination');
+
+    const unrelatedChunks: any[] = [
+      {
+        _id: 'c4',
+        documentId: 'doc1',
+        text: 'Academic calendar 2025-26: Monsoon semester classes commence on August 4, 2025.',
+        chunkIndex: 40,
+        pageNumber: 15,
+        metadata: mockMeta,
+        score: 0.55,
+      },
+    ];
+    const unrelatedFallback = ragResponseService.formatDeterministicAnswer(
+      unrelatedChunks,
+      citations,
+      'What is the hostel fee for the 2025-26 academic year?'
+    );
+    assert(!unrelatedFallback.includes('hostel fee is Rs.'), 'TEST D: Does not invent hostel fee');
 
     console.log('\n================================================================');
     console.log(`📊 TEST SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);
