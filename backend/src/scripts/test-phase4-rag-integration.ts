@@ -212,6 +212,68 @@ async function runVectorRAGIntegrationTests() {
     const calendarResult = await AcademicCalendarService.findCalendarEvents({});
     assert(calendarResult.found === true, 'Structured AcademicCalendarService continues to find calendar events');
 
+    // ----------------------------------------------------------------
+    // TEST GROUP 8: Deterministic Multi-Chunk Fallback Synthesis Tests
+    // ----------------------------------------------------------------
+    console.log('\n--- Test Group 8: Deterministic Fallback Synthesis & Deduplication ---');
+    const citations = [
+      { title: 'Academic Handbook 2025-26', pageNumber: 6, documentId: 'doc1' },
+      { title: 'Academic Handbook 2025-26', pageNumber: 7, documentId: 'doc1' },
+      { title: 'Academic Handbook 2025-26', pageNumber: 28, documentId: 'doc1' },
+    ];
+
+    // Scenario 1: Multi-chunk answer (fee in chunk 2 must not be lost)
+    const mockMeta: any = { department: new mongoose.Types.ObjectId(), program: new mongoose.Types.ObjectId() };
+    const multiChunks: any[] = [
+      {
+        _id: 'c1',
+        documentId: 'doc1',
+        text: 'Medical Condonation: Students with 60% to 64.9% attendance require a medical certificate from a Registered Medical Practitioner.',
+        chunkIndex: 14,
+        pageNumber: 7,
+        metadata: mockMeta,
+        score: 0.85,
+      },
+      {
+        _id: 'c2',
+        documentId: 'doc1',
+        text: 'Condonation Processing Fee: A non-refundable condonation processing fee of Rs. 500 per course is payable at the time of application.',
+        chunkIndex: 12,
+        pageNumber: 6,
+        metadata: mockMeta,
+        score: 0.83,
+      },
+    ];
+
+    const fallbackMulti = ragResponseService.formatDeterministicAnswer(
+      multiChunks,
+      citations,
+      'What is the medical attendance condonation fee?'
+    );
+    assert(fallbackMulti.includes('Rs. 500'), 'Multi-chunk fallback contains Rs. 500 fee from chunk 2');
+    assert(fallbackMulti.includes('Page 6'), 'Multi-chunk fallback attributes fee to Page 6');
+    assert(fallbackMulti.includes('Page 7'), 'Multi-chunk fallback attributes medical requirements to Page 7');
+
+    // Scenario 2: Duplicate fact deduplication (duplicate Rs. 500 statement across chunks)
+    const dupChunks: any[] = [
+      ...multiChunks,
+      {
+        _id: 'c3',
+        documentId: 'doc1',
+        text: 'FAQ: The ordinary condonation processing fee is Rs. 500 per course payable at application.',
+        chunkIndex: 70,
+        pageNumber: 28,
+        metadata: mockMeta,
+        score: 0.82,
+      },
+    ];
+    const fallbackDup = ragResponseService.formatDeterministicAnswer(dupChunks, citations);
+    assert(fallbackDup.includes('Rs. 500'), 'Deduplicated fallback contains Rs. 500');
+
+    // Scenario 3: Empty chunks / Missing information
+    const emptyFallback = ragResponseService.formatDeterministicAnswer([], []);
+    assert(emptyFallback.includes("couldn't find this information"), 'Empty retrieval returns not-found statement');
+
     console.log('\n================================================================');
     console.log(`📊 TEST SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);
     console.log('================================================================\n');

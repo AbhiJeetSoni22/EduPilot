@@ -110,7 +110,7 @@ export class RagResponseService {
 
     // 7. Deterministic Fallback if Gemini is not configured or fails
     if (!generatedAnswer) {
-      generatedAnswer = this.formatDeterministicAnswer(chunks, citations);
+      generatedAnswer = this.formatDeterministicAnswer(chunks, citations, userMessage);
     }
 
     // 8. Append formatted citation block
@@ -190,6 +190,20 @@ export class RagResponseService {
   }
 
   /**
+   * Cleans boilerplate institutional headers from chunk text.
+   */
+  private cleanBoilerplate(text: string): string {
+    return text
+      .replace(/NORTHBRIDGE INSTITUTE OF TECHNOLOGY[\s\S]*?Page \d+/gi, '')
+      .replace(/FICTIONAL TEST DOCUMENT[^\n]*/gi, '')
+      .replace(/Doc\. Ref:[^\n]*/gi, '')
+      .replace(/\bQ\.\s+/g, 'Q: ')
+      .replace(/\bA\.\s+/g, 'A: ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  /**
    * Formats a clean, deduplicated student-facing citation section.
    */
   public formatCitationBlock(citations: Citation[]): string {
@@ -214,20 +228,95 @@ export class RagResponseService {
   }
 
   /**
-   * Deterministic grounded synthesis when LLM is unavailable.
+   * Deterministic grounded synthesis across all retrieved chunks when LLM is unavailable.
    */
-  private formatDeterministicAnswer(
+  public formatDeterministicAnswer(
     chunks: VectorSearchResult[],
-    citations: Citation[]
+    citations: Citation[],
+    userMessage?: string
   ): string {
-    const topChunk = chunks[0];
-    const topCitation = citations[0];
-    const pageText = topChunk.pageNumber ? ` (Page ${topChunk.pageNumber})` : '';
+    if (!chunks || chunks.length === 0) {
+      return "I couldn't find this information in the available official EduPilot documents.";
+    }
 
-    return (
-      `Based on the official institutional document **${topCitation?.title || 'Academic Records'}**${pageText}:\n\n` +
-      `${topChunk.text.trim()}`
-    );
+    const primaryDoc = citations[0]?.title || 'Academic Records';
+
+    // 1. Group extracted facts by Page / Source and deduplicate
+    const pageFactMap = new Map<number, string[]>();
+    const seenNormalized = new Set<string>();
+
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const page = chunk.pageNumber || 1;
+      const cleaned = this.cleanBoilerplate(chunk.text);
+
+      if (!cleaned) continue;
+
+      // Extract individual clauses / bullet points / lines
+      const rawLines = cleaned.split(/(?:•|\n+)/g).map((l) => l.trim()).filter(Boolean);
+
+      for (const line of rawLines) {
+        // If a line is long, split on sentence boundary while avoiding splitting abbreviations like Rs. 500
+        const clauses = line.length > 250
+          ? line.split(/(?<!\b(?:Rs|Dr|Mr|Ms|Prof|Sec|No|ref|dept|vs|e\.g|i\.e))\.\s+(?=[A-Z])/gi)
+          : [line];
+
+        for (const point of clauses) {
+          const normalized = point.replace(/^[•\-\*\d\.\)]+\s*/, '').trim();
+          if (normalized.length < 15) continue;
+
+          // Deduplication key (lowercase alphanumeric normalized)
+          const key = normalized.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 75);
+          if (seenNormalized.has(key)) {
+            continue;
+          }
+          seenNormalized.add(key);
+
+          if (!pageFactMap.has(page)) {
+            pageFactMap.set(page, []);
+          }
+          pageFactMap.get(page)!.push(normalized);
+        }
+      }
+    }
+
+    // 2. If no structured points extracted, fallback to cleaned chunk text
+    if (pageFactMap.size === 0) {
+      const topChunk = chunks[0];
+      const pageText = topChunk.pageNumber ? ` (Page ${topChunk.pageNumber})` : '';
+      return (
+        `Based on the official institutional document **${primaryDoc}**${pageText}:\n\n` +
+        `${topChunk.text.trim()}`
+      );
+    }
+
+    // 3. Prioritize pages matching query terms (e.g. fee, deadline, medical, percentage)
+    const queryTerms = userMessage
+      ? userMessage.toLowerCase().split(/[\s,?.!]+/).filter((t) => t.length > 3)
+      : [];
+
+    const sortedPages = Array.from(pageFactMap.keys()).sort((a, b) => {
+      if (queryTerms.length === 0) return a - b;
+      const aFacts = (pageFactMap.get(a) || []).join(' ').toLowerCase();
+      const bFacts = (pageFactMap.get(b) || []).join(' ').toLowerCase();
+      const aMatches = queryTerms.filter((t) => aFacts.includes(t)).length;
+      const bMatches = queryTerms.filter((t) => bFacts.includes(t)).length;
+      return bMatches - aMatches || a - b;
+    });
+
+    const sections: string[] = [];
+    sections.push(`Based on the official institutional document **${primaryDoc}**:`);
+
+    for (const page of sortedPages) {
+      const facts = pageFactMap.get(page) || [];
+      if (facts.length === 0) continue;
+
+      const pageHeading = `**Page ${page} Provisions:**`;
+      const factList = facts.map((f) => `• ${f}`).join('\n');
+      sections.push(`${pageHeading}\n${factList}`);
+    }
+
+    return sections.join('\n\n');
   }
 }
 
