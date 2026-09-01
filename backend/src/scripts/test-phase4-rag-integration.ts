@@ -93,9 +93,13 @@ async function runVectorRAGIntegrationTests() {
     const emptyFilters = await vectorHandler.buildFilters({}, {});
     assert(emptyFilters === undefined, 'No filters are constructed when query entities are empty');
 
-    // 3c. Specific policy intent maps documentType
+    // 3c. Intent alone must NOT automatically inject documentType filter
     const attendanceFilters = await vectorHandler.buildFilters({}, {}, 'attendance_policy');
-    assert(attendanceFilters?.documentType === 'attendance_policy', 'attendance_policy intent maps documentType filter');
+    assert(attendanceFilters === undefined || attendanceFilters?.documentType === undefined, 'attendance_policy intent does NOT automatically force documentType filter');
+
+    // 3d. Explicitly supplied legitimate documentType filter is preserved
+    const explicitDocTypeFilters = await vectorHandler.buildFilters({ documentType: 'academic_regulations' } as any, {});
+    assert(explicitDocTypeFilters?.documentType === 'academic_regulations', 'Explicitly supplied documentType is correctly preserved in filters');
 
     // ----------------------------------------------------------------
     // TEST GROUP 4: No-Result Handling (Anti-Hallucination)

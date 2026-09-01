@@ -184,12 +184,10 @@ export class VectorHandler {
       hasFilter = true;
     }
 
-    // 6. Document Type Filter (only if specific intent warrants it)
-    if (intent === 'attendance_policy') {
-      filters.documentType = 'attendance_policy';
-      hasFilter = true;
-    } else if (intent === 'grading_policy') {
-      filters.documentType = 'grading_policy';
+    // 6. Explicit Document Type Filter (only when explicitly provided by metadata/entities)
+    const rawDocType = (entities as Record<string, unknown>).documentType;
+    if (rawDocType && typeof rawDocType === 'string' && rawDocType.trim()) {
+      filters.documentType = rawDocType.trim();
       hasFilter = true;
     }
 
