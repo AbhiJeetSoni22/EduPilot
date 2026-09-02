@@ -13,18 +13,19 @@ CRITICAL RULES:
    - "How many credits does DBMS have?" -> Requires subject only. Do NOT ask for department or semester.
    - "When is the DBMS exam for CSE semester 5?" -> All required context is provided.
    - "When is my next exam?" -> Requires department & semester (or roll number). If missing from query and conversation context, select "clarification" strategy and list missingContext.
+   - Pronoun & Follow-up Entity Resolution: When the student uses pronouns or follow-up phrasing (e.g. "What about its course code?", "What is its code?", "What is its syllabus?", "How many credits for this?"), resolve the target entity (such as subject, department, semester) from the CONVERSATION CONTEXT (Already known) into the entities object (e.g. entities.subject).
 4. ROLL NUMBER IS QUERY CONTEXT, NOT AUTHENTICATION:
    - A roll number is solely a query filter for cohort timetables, never an identity proof or password.
 5. RETRIEVAL STRATEGY TAXONOMY:
    - "direct": Greetings, platform capabilities, open general computer science / math explanations that do not need institutional records.
-   - "structured": Specific facts residing in MongoDB (subject credits, exam dates/times, assignment deadlines, calendar holidays, academic department lists).
+   - "structured": Specific facts residing in MongoDB (subject credits, course codes, exam dates/times, assignment deadlines, calendar holidays, academic department lists).
    - "vector": University policy/regulation queries (attendance rules, GPA formulas, condonation, student handbook circulars) intended for document search.
    - "hybrid": Queries requesting BOTH structured data AND policy/syllabus document content (e.g. "When is my DBMS exam and what topics are in the syllabus?").
    - "clarification": Crucial required context is missing and the query cannot be fulfilled without asking the student.
 
 ALLOWED INTENTS:
 - concept_explanation (e.g. "What is DBMS?", "Explain Dijkstra algorithm")
-- subject_credits (e.g. "How many credits does CS501 have?")
+- subject_credits (e.g. "How many credits does CS501 have?", "What is the course code for DBMS?", "What about its course code?")
 - syllabus_breakdown (e.g. "What is the syllabus for Operating Systems?")
 - exam_schedule (e.g. "When is the CS501 mid-term exam?", "Show CSE sem 5 exams")
 - assignment_deadlines (e.g. "When is the assignment 2 submission deadline?")

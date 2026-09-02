@@ -43,19 +43,30 @@ export class ResponseGeneratorService {
     }
 
     // 3. Deterministic Grounded Markdown Formatter
-    return this.formatDeterministicResponse(analysis, retrievedData);
+    return this.formatDeterministicResponse(userMessage, analysis, retrievedData);
   }
 
   /**
    * Deterministic formatter when Gemini is offline or for guaranteed structured output.
    */
   private formatDeterministicResponse(
+    userMessage: string,
     analysis: QueryAnalysis,
     retrievedData: RetrievedAcademicData
   ): string {
     const { category, records } = retrievedData;
 
     if (category === 'subject') {
+      if (records.length === 1) {
+        const r: any = records[0];
+        if (/course\s*code|subject\s*code|\bcode\b/i.test(userMessage)) {
+          return `The course code for **${r.name}** is **${r.code}** (Semester ${r.semester}, ${r.credits} Credits).`;
+        }
+        if (/credits?|how many credits/i.test(userMessage)) {
+          return `**${r.code}: ${r.name}** has **${r.credits} Credits** (Semester ${r.semester}, ${r.type}).`;
+        }
+      }
+
       return (
         `📚 **Curriculum Information**\n\n` +
         records

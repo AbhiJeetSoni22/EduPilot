@@ -106,10 +106,19 @@ export class QueryAnalyzerService {
       analysis.retrievalStrategy = 'direct';
     }
 
-    // Context resolution for subject credits
+    // Reconcile field inquiries (course code, credits, syllabus) that may have been classified as general inquiry or context response
+    if (
+      (analysis.intent === 'general_inquiry' || analysis.intent === 'unknown' || analysis.intent === 'context_response') &&
+      /course\s*code|subject\s*code|\b(?:its|the|this)?\s*code\b|credits?|credit value|how many credits/i.test(message)
+    ) {
+      analysis.intent = 'subject_credits';
+    }
+
+    // Context resolution for subject credits & course code
     if (analysis.intent === 'subject_credits' || analysis.intent === 'syllabus_breakdown') {
       analysis.requiredContext = ['subject'];
       if (activeSubj) {
+        analysis.entities.subject = activeSubj;
         analysis.missingContext = [];
         analysis.retrievalStrategy = 'structured';
       } else {
@@ -171,21 +180,26 @@ export class QueryAnalyzerService {
       };
     }
 
-    // 3. Subject Credits & Subject Listing Queries
-    if (/credits?|credit value|how many credits/i.test(lower)) {
+    // 3. Subject Credits & Course Code Queries (e.g. "How many credits does DBMS have?", "What about its course code?", "What is the course code of DBMS?")
+    if (/course\s*code|subject\s*code|\bcode\b|credits?|credit value|how many credits/i.test(lower)) {
       const subjectMatch = lower.match(/(dbms|cs501|operating systems|computer networks|software engineering)/i);
       const subject = subjectMatch ? subjectMatch[0].toUpperCase() : existingContext.subject;
 
       if (subject) {
         return {
           intent: 'subject_credits',
-          entities: { subject, subjectCode: subject.startsWith('CS') ? subject : undefined },
+          entities: {
+            subject,
+            subjectCode: subject.startsWith('CS') ? subject : undefined,
+            ...(existingContext.department ? { department: existingContext.department } : {}),
+            ...(existingContext.semester !== undefined ? { semester: existingContext.semester } : {}),
+          },
           requiredContext: ['subject'],
           providedContext: ['subject'],
           missingContext: [],
           retrievalStrategy: 'structured',
           confidenceScore: 0.95,
-          reasoningSummary: 'Subject credits lookup from structured MongoDB curriculum.',
+          reasoningSummary: 'Subject credits/course code lookup from structured MongoDB curriculum.',
         };
       }
       return {
@@ -195,7 +209,7 @@ export class QueryAnalyzerService {
         providedContext: [],
         missingContext: ['subject'],
         retrievalStrategy: 'clarification',
-        clarificationPrompt: 'Which subject or course code would you like to know the credits for?',
+        clarificationPrompt: 'Which subject or course code would you like to know the credits or code for?',
         confidenceScore: 0.9,
       };
     }

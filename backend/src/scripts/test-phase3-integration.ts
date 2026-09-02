@@ -430,6 +430,101 @@ async function runEndToEndVerification() {
     results.push({ id: 16, name: 'Parameter Sanitization & Security', passed: false, error: err.message });
   }
 
+  // -------------------------------------------------------------
+  // Test 17 — Multi-Turn Follow-Up ("How many credits does DBMS have?" -> "What about its course code?")
+  // -------------------------------------------------------------
+  try {
+    const testConvId = `conv_test_followup_${Date.now()}`;
+    const conv = await conversationService.getOrCreateConversation(testConvId);
+
+    // Turn 1: Establish DBMS context
+    const outTurn1 = await orchestratorService.orchestrate('How many credits does DBMS have?', conv.queryContext);
+    await conversationService.recordTurn(conv, 'How many credits does DBMS have?', outTurn1.response, outTurn1.queryAnalysis);
+
+    // Turn 2: Follow-up asking for course code with pronoun "its"
+    const outTurn2 = await orchestratorService.orchestrate('What about its course code?', conv.queryContext);
+    await conversationService.recordTurn(conv, 'What about its course code?', outTurn2.response, outTurn2.queryAnalysis);
+
+    const ok =
+      outTurn1.status === 'answer_ready' &&
+      outTurn2.status === 'answer_ready' &&
+      outTurn2.queryAnalysis.retrievalStrategy === 'structured' &&
+      outTurn2.queryAnalysis.entities.subject === 'DBMS' &&
+      outTurn2.response.includes('CS501');
+
+    results.push({
+      id: 17,
+      name: 'Multi-Turn Follow-Up (DBMS -> "What about its course code?" -> CS501)',
+      passed: Boolean(ok),
+      details: `Turn 1 subject=${conv.queryContext.subject} -> Turn 2 response="${outTurn2.response.slice(0, 70)}..."`,
+    });
+  } catch (err: any) {
+    results.push({ id: 17, name: 'Multi-Turn Follow-Up (DBMS -> course code)', passed: false, error: err.message });
+  }
+
+  // -------------------------------------------------------------
+  // Test 18 — Standalone Course Code Query ("What is the course code of DBMS?")
+  // -------------------------------------------------------------
+  try {
+    const out = await orchestratorService.orchestrate('What is the course code of DBMS?');
+    const ok =
+      out.status === 'answer_ready' &&
+      out.queryAnalysis.retrievalStrategy === 'structured' &&
+      out.queryAnalysis.entities.subject === 'DBMS' &&
+      out.response.includes('CS501');
+
+    results.push({
+      id: 18,
+      name: 'Standalone Course Code Query ("What is the course code of DBMS?")',
+      passed: Boolean(ok),
+      details: `strategy=${out.queryAnalysis.retrievalStrategy}, response contains CS501: "${out.response.slice(0, 70)}..."`,
+    });
+  } catch (err: any) {
+    results.push({ id: 18, name: 'Standalone Course Code Query', passed: false, error: err.message });
+  }
+
+  // -------------------------------------------------------------
+  // Test 19 — Course Code Follow-up Without Context (Strict Anti-Hallucination)
+  // -------------------------------------------------------------
+  try {
+    const out = await orchestratorService.orchestrate('What about its course code?', {});
+    const ok =
+      out.status === 'needs_context' &&
+      out.queryAnalysis.retrievalStrategy === 'clarification' &&
+      (out.missingContext || []).includes('subject') &&
+      !out.response.includes('CS501');
+
+    results.push({
+      id: 19,
+      name: 'Follow-up Without Subject Context (Anti-Hallucination Clarification)',
+      passed: Boolean(ok),
+      details: `status=${out.status}, missingContext=[${(out.missingContext || []).join(', ')}]`,
+    });
+  } catch (err: any) {
+    results.push({ id: 19, name: 'Follow-up Without Context', passed: false, error: err.message });
+  }
+
+  // -------------------------------------------------------------
+  // Test 20 — Field Follow-up for Credits ("How many credits for this course?")
+  // -------------------------------------------------------------
+  try {
+    const out = await orchestratorService.orchestrate('How many credits for this course?', { subject: 'DBMS' });
+    const ok =
+      out.status === 'answer_ready' &&
+      out.queryAnalysis.retrievalStrategy === 'structured' &&
+      out.queryAnalysis.entities.subject === 'DBMS' &&
+      (out.response.includes('4') || out.response.toLowerCase().includes('credit'));
+
+    results.push({
+      id: 20,
+      name: 'Field Follow-up for Credits with Reused Context',
+      passed: Boolean(ok),
+      details: `status=${out.status}, response="${out.response.slice(0, 70)}..."`,
+    });
+  } catch (err: any) {
+    results.push({ id: 20, name: 'Field Follow-up for Credits', passed: false, error: err.message });
+  }
+
   // Close DB connection
   await mongoose.disconnect();
 
@@ -452,7 +547,7 @@ async function runEndToEndVerification() {
   console.log('=================================================================\n');
 
   if (passedCount === results.length) {
-    console.log('🎉 All 16 Phase 3 end-to-end integration tests passed successfully!');
+    console.log(`🎉 All ${results.length} Phase 3 end-to-end integration tests passed successfully!`);
     process.exit(0);
   } else {
     console.error('❌ Some tests failed.');

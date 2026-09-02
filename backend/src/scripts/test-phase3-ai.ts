@@ -84,6 +84,37 @@ const TEST_CASES: TestCase[] = [
       res.missingContext.length === 0,
     expectedDescription: 'strategy=structured, missingContext=[] (reusing CSE Sem 5)',
   },
+  {
+    id: 8,
+    name: 'Standalone Course Code Lookup',
+    input: 'What is the course code of DBMS?',
+    assert: (res) =>
+      res.intent === 'subject_credits' &&
+      res.retrievalStrategy === 'structured' &&
+      res.entities.subject === 'DBMS',
+    expectedDescription: 'intent=subject_credits, strategy=structured, entities.subject=DBMS',
+  },
+  {
+    id: 9,
+    name: 'Follow-up Course Code with Context ("What about its course code?")',
+    input: 'What about its course code?',
+    context: { subject: 'DBMS' },
+    assert: (res) =>
+      res.intent === 'subject_credits' &&
+      res.retrievalStrategy === 'structured' &&
+      res.entities.subject === 'DBMS',
+    expectedDescription: 'intent=subject_credits, strategy=structured, entities.subject=DBMS (resolved from context)',
+  },
+  {
+    id: 10,
+    name: 'Follow-up Course Code without Context (Anti-Hallucination)',
+    input: 'What about its course code?',
+    assert: (res) =>
+      res.intent === 'subject_credits' &&
+      res.retrievalStrategy === 'clarification' &&
+      res.missingContext.includes('subject'),
+    expectedDescription: 'intent=subject_credits, strategy=clarification, missingContext=[subject]',
+  },
 ];
 
 function testSchemaValidationFallback(): boolean {

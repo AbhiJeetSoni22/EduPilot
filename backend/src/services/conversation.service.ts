@@ -97,7 +97,9 @@ export class ConversationService {
       if (analysis.entities.program) entityContext.program = analysis.entities.program;
       if (analysis.entities.semester) entityContext.semester = analysis.entities.semester;
       if (analysis.entities.academicYear) entityContext.academicYear = analysis.entities.academicYear;
-      if (analysis.entities.subject) entityContext.subject = analysis.entities.subject;
+      if (analysis.entities.subject || analysis.entities.subjectCode) {
+        entityContext.subject = analysis.entities.subject || analysis.entities.subjectCode;
+      }
 
       conversation.queryContext = this.mergeContext(conversation.queryContext, entityContext);
     }
