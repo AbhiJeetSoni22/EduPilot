@@ -1,10 +1,10 @@
 # AI & RAG Architecture Specification — Exam & Academic Assistant (EduPilot)
 
-This document details the completed **AI Query Analysis & Orchestration** pipeline (Phase 3) and the **RAG Knowledge Base & Vector Search Foundation** (Phase 4).
+This document details the completed **AI Query Analysis & Orchestration** pipeline (Phase 3) and the **RAG Knowledge Base & Vector Search** architecture (Phase 4).
 
 ---
 
-## 1. AI Query Analysis & Orchestration Architecture (Phase 3 Completed)
+## 1. AI Query Analysis & Orchestration Architecture
 
 ```text
 Student Natural Language Query + Active Context
@@ -13,11 +13,11 @@ Student Natural Language Query + Active Context
 [Backend Node.js Orchestrator]
        │
        ├─► 1. Query Analyzer (Gemini NLU / Deterministic Engine)
-       │       - Intent Classification (e.g. `exam_schedule`, `subject_credits`, `assignment_deadlines`)
+       │       - Intent Classification (e.g. `exam_schedule`, `subject_credits`, `attendance_policy`)
        │       - Entity Extraction (Subject: `CS501`, Dept: `CSE`, Sem: `5`)
        │       - Context Resolution (Required vs Provided vs Missing)
        │       - Deterministic pending intent preservation (no synthetic queries)
-       │       - Retrieval Strategy Assignment
+       │       - Retrieval Strategy Assignment (`direct`, `structured`, `vector`, `clarification`)
        │
        ├─► 2. Schema Validation & Parameter Sanitization
        │       - `validateAndNormalizeQueryAnalysis`
@@ -32,8 +32,13 @@ Student Natural Language Query + Active Context
        │       │                   [ResponseGeneratorService]
        │       │                   (Zero-hallucination grounded answer synthesis)
        │       │
-       │       ├── 'vector'        ──► Phase 4 RAG Vector Search
-       │       └── 'hybrid'        ──► Phase 4 Hybrid Orchestration
+       │       ├── 'vector'        ──► [VectorHandler]
+       │       │                         ├─► Build metadata filters (Dept, Sem, Code, Year)
+       │       │                         ├─► Generate 768-dim query embedding
+       │       │                         ├─► Execute Atlas $vectorSearch on `knowledge_chunks`
+       │       │                         └─► [RagResponseService] Grounded synthesis + Citations
+       │       │
+       │       └── 'hybrid'        ──► Structured lookup + Vector search context
        │
        └─► 4. Turn Persistence & Response Delivery
                │
@@ -101,9 +106,9 @@ export interface QueryAnalysis {
 
 ---
 
-## 3. Academic RAG Knowledge Base & Vector Search (Phase 4 Foundation Implemented)
+## 3. Academic RAG Knowledge Base & Ingestion Pipeline
 
-### High-Level Ingestion & Retrieval Flow
+### High-Level Ingestion Flow
 
 ```text
 Admin Upload (Department + Program + PDF)
@@ -226,12 +231,9 @@ The vector search index is defined on MongoDB Atlas for the `knowledge_chunks` c
 }
 ```
 
-> [!NOTE]
-> The Atlas Vector Search index is configured via MongoDB Atlas / Atlas CLI and is NOT created automatically on application startup.
-
 ---
 
-## 7. Vector Search Service & Metadata Pre-filtering
+## 7. Vector Search Service & Metadata Pre-Filtering
 
 The `VectorSearchService` executes semantic similarity queries against the `knowledge_chunks` collection using MongoDB's `$vectorSearch` pipeline stage:
 
@@ -252,7 +254,28 @@ const vectorSearchStage = {
 };
 ```
 
-**Pre-filtering Rules:**
-1. Filters are only applied when fields are explicitly provided in the query context.
-2. If `subjectCode` or `semester` is unknown, it is not forced into the filter.
+**Pre-Filtering Rules:**
+1. Filters are only applied when fields are explicitly provided in the query context or entities.
+2. If `subjectCode` or `semester` is unknown, it is not forced into the filter to avoid over-filtering.
 3. Department and Program scoping prevents cross-department retrieval leakage.
+
+---
+
+## 8. Grounded RAG Response Synthesis & Citations
+
+The `RagResponseService` synthesizes student-facing answers based strictly on retrieved chunks with the following guardrails:
+
+### Core Grounding & Anti-Hallucination Rules
+1. **Strict Document Grounding**: Answer ONLY from the provided institutional excerpts. Never use external knowledge or general world knowledge.
+2. **Complete Question Coverage**: Thoroughly address all material aspects requested (e.g. eligibility criteria, required documents, fees, deadlines, approving authorities).
+3. **General vs Specialized Policy Synthesis**: When a student asks about a specialized policy (e.g. medical condonation) and the document provides directly applicable general section provisions (such as general processing fees or deadlines), explain the general provision while clearly indicating whether a specialized rule is explicitly stated or unstated.
+4. **Zero Number Invention**: If a specific fee, percentage, date, or threshold is absent from the text, explicitly state that it is not specified in the official documents. Never guess numbers.
+5. **Deduplicated Page-Level Citations**: Format source references clearly:
+   ```text
+   📖 Sources:
+   • Student Academic Regulations 2025 — Page 6
+   • Student Academic Regulations 2025 — Page 7
+   ```
+
+### Deterministic Offline / Timeout Fallback
+If the Gemini API times out or is unreachable, `RagResponseService.formatDeterministicAnswer` performs rule-based, cross-page clause extraction, deduplication, and query-term relevance prioritization directly on the retrieved chunks, guaranteeing 100% uptime without empty responses.

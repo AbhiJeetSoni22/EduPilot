@@ -8,7 +8,7 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
 
 ```text
 ========================================================================================
-1. CONVERSATIONAL AI & CHATBOT PATHWAY (Phase 3 Completed Architecture)
+1. CONVERSATIONAL AI & CHATBOT PATHWAY (Active Full Pipeline)
 ========================================================================================
 
    Student / Public User
@@ -45,12 +45,20 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
             │       │                           [ResponseGeneratorService]
             │       │                           (Zero-hallucination grounded answer)
             │       │
-            │       ├── [VectorHandler]         ──► Returns status: "retrieval_unavailable" (Phase 4)
-            │       └── [HybridHandler]         ──► Returns status: "retrieval_unavailable" (Phase 4)
+            │       ├── [VectorHandler]         ──► 1. Build Filters (Dept, Program, Semester, Code)
+            │       │                               2. Generate 768-dim Embedding (GeminiEmbeddingProvider)
+            │       │                               3. Atlas Vector Search ($vectorSearch on knowledge_chunks)
+            │       │                               4. Grounded Synthesis & Citations (RagResponseService)
+            │       │                               5. Deterministic Fallback if offline
+            │       │                                    │
+            │       │                                    ▼
+            │       │                           Returns status: "answer_ready" + citations + chunks
+            │       │
+            │       └── [HybridHandler]         ──► Structured Baseline + RAG Excerpts
             │
             └─► 4. Turn Persistence & Response
                     - Appends turn to Conversation collection
-                    - Delivers structured ChatResponsePayload to Student
+                    - Delivers structured ChatResponsePayload to Student UI
 
 ========================================================================================
 2. ADMINISTRATIVE MANAGEMENT PATHWAY (Protected Authority & Ingestion)
@@ -93,7 +101,7 @@ The **Exam & Academic Assistant (EduPilot)** is structured around two distinct o
 | **Target User** | University Administrators & Staff | Students & General Campus Community |
 | **Credentials Required** | Email & Password | None (Natural conversation responses) |
 | **Mechanisms** | JWT Token (`Authorization: Bearer <token>`) | Parameters (`{ department, semester, subject, rollNumber }`) |
-| **Access Rights** | Write, Update, Delete, Upload, Import | Read-only public curriculum, schedules, regulations |
+| **Access Rights** | Write, Update, Delete, Upload, Import | Read-only public curriculum, schedules, regulations, RAG search |
 | **Private Data Access** | Full management access | **None** (Private personal student records are never exposed) |
 
 > [!IMPORTANT]
@@ -129,20 +137,21 @@ Student Message + Existing Context
               ▼
    [ParameterValidator Sanitization]
               │
-              ▼
-   [Academic Service Query Execution]
-   (SubjectService, ExamService, AssignmentService, etc.)
-              │
-              ▼
-   [ResponseGeneratorService]
-   (Zero-hallucination grounded answer synthesis)
+              ├───────────────────────────────────┐
+              ▼                                   ▼
+   [Structured Route]                    [Vector RAG Route]
+   (SubjectService, ExamService, etc.)   (VectorSearchService, RagResponseService)
+              │                                   │
+              ▼                                   ▼
+   [ResponseGeneratorService]            [RagResponseService]
+   (Zero-hallucination structured)       (Grounded synthesis + Page Citations)
 ```
 
 ---
 
-## 4. Phase 3 Implemented vs Phase 4 Planned Components
+## 4. Implemented Architectural Components
 
-### Implemented in Phase 3
+### Conversational AI & Query Analysis (Phase 3)
 - **Gemini Service**: Isolated backend caller with structured JSON generation and timeout handling (`config.geminiModel`).
 - **Query Analyzer Service**: Real-time NLU classification, entity parsing, context resolution, and strategy assignment.
 - **Academic Query Services**: Dedicated `SubjectService`, `ExamService`, `AssignmentService`, `AcademicCalendarService`, and `RegulationService` with departmental and program filtering.
@@ -150,22 +159,19 @@ Student Message + Existing Context
 - **Zero-Hallucination Response Generator**: `ResponseGeneratorService` grounding responses strictly in verified MongoDB records.
 - **Deterministic Multi-Turn Context Continuation**: Preserves pending `queryAnalysis` intent across clarification turns without synthetic query strings.
 - **Conversation State**: Mongoose `Conversation` model with message histories and accumulated `queryContext`.
-- **Public Chat API & UI**: `POST /api/chat`, `GET /api/chat/:id`, and interactive `ChatInterface.tsx` frontend component with 2-column home page layout.
+- **Public Chat API & UI**: `POST /api/chat`, `GET /api/chat/:id`, and interactive `ChatInterface.tsx` frontend component.
 
-### Implemented in Phase 4 (Knowledge Base & Vector Search Foundation)
+### Academic RAG & Vector Search (Phase 4)
 - **PDF Text Extraction**: Page-boundary preserving extraction via `PdfExtractorService`.
 - **Structure & Metadata Understanding**: Heuristic academic entity extraction via `MetadataExtractorService` with immutable admin context attachment.
 - **Section-Aware Chunking**: `ChunkingService` with configurable window sizes (~800 chars) and overlap (~120 chars).
 - **Gemini Embedding Provider**: `GeminiEmbeddingProvider` producing 768-dimensional vectors with batch processing support.
 - **Knowledge Chunk Storage**: `KnowledgeChunk` model mapping to `knowledge_chunks` collection with strict 768-dimension schema validation.
 - **MongoDB Atlas Vector Search Service**: `VectorSearchService` building `$vectorSearch` aggregation pipelines with dynamic metadata pre-filtering.
-- **Admin Ingestion Interface**: Minimal Department + Program + PDF upload flow in Admin Knowledge Base portal.
-
-### Planned for Phase 4 (Next Steps)
-- Complete RAG response orchestration & prompt grounding with retrieved chunks.
-- Structured DB to Vector Search fallback mechanisms.
-- Grounded citations and exact source attribution (Document title + page number).
-- Answerability evaluation and hybrid retrieval scoring.
+- **Grounded RAG Response Synthesis**: `RagResponseService` synthesizing authoritative answers based strictly on retrieved chunks with explicit vs unstated fact differentiation.
+- **Source Citation Formatting**: `formatCitationBlock` generating clean, deduplicated page-level source references (`📖 Sources: • Document — Page N`).
+- **Deterministic Synthesis Fallback**: Robust, deduplicated cross-page synthesis when Gemini API is unavailable or offline.
+- **Admin Ingestion Interface**: Minimal Department + Program + PDF upload flow in Admin Knowledge Base portal (`/admin/knowledge-base`).
 
 ---
 
@@ -212,3 +218,34 @@ Admin Upload Portal (/admin/knowledge-base)
                      - In case of failure: status = 'failed' with safe human-readable error
 ```
 
+---
+
+## 6. End-to-End Vector Retrieval & RAG Synthesis Flow
+
+```text
+Student Question: "What is the fee and process for attendance condonation?"
+             │
+             ▼
+  [QueryAnalyzerService] ──► intent: "attendance_policy", strategy: "vector"
+             │
+             ▼
+  [VectorHandler]
+             │
+             ├─► 1. buildFilters: { department, semester, subjectCode? }
+             ├─► 2. embeddingService.embedQuery: Returns 768-dim query vector
+             ├─► 3. vectorSearchService.search: Executes MongoDB $vectorSearch
+             │       - Targets index: "knowledge_chunks_vector_index"
+             │       - Applies metadata pre-filters
+             │       - Returns top matching chunks with similarity scores
+             │
+             ├─► 4. ragResponseService.generateRAGResponse:
+             │       - Resolves human-readable document titles
+             │       - Enforces strict grounding & anti-hallucination instructions
+             │       - Synthesizes complete multi-clause answer
+             │       - Appends formatted citations:
+             │         "📖 Sources:
+             │          • Student Academic Regulations 2025 — Page 6
+             │          • Student Academic Regulations 2025 — Page 7"
+             │
+             └─► 5. Returns status: "answer_ready" to student chat interface
+```

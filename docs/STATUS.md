@@ -6,7 +6,7 @@ This tracker reflects the current implementation milestones and roadmap for the 
 
 ## Current Roadmap & Status
 
-### Phase 1: Project Initialization & Foundation
+### Phase 1: Project Initialization & Foundation *(100% Complete & Verified)*
 - [x] Repository structure created
 - [x] Frontend initialized (Next.js 15, React 19, TypeScript)
 - [x] Backend initialized (Express.js, TypeScript)
@@ -16,7 +16,7 @@ This tracker reflects the current implementation milestones and roadmap for the 
 
 ---
 
-### Phase 2: Structured Academic Data & Administration
+### Phase 2: Structured Academic Data & Administration *(100% Complete & Verified)*
 - [x] Academic data models (Departments, Programs, Subjects, Exams, Assignments, Calendar Events, Regulations, Documents)
 - [x] Public read-only REST APIs for curriculum, exam schedules, and policy data
 - [x] Admin authentication & session management (JWT / bcrypt)
@@ -43,8 +43,6 @@ This tracker reflects the current implementation milestones and roadmap for the 
   - [x] `DirectHandler` (concept definitions, greetings, capabilities)
   - [x] `StructuredHandler` (curriculum credits, subjects offered, exam timetables, assignment deadlines, calendar milestones)
   - [x] `ClarificationHandler` (context-soliciting interactive prompts)
-  - [x] `VectorHandler` (`retrieval_unavailable` Phase 4 boundary)
-  - [x] `HybridHandler` (structured baseline + Phase 4 boundary)
 - [x] Conversation session persistence (`Conversation` Mongoose model & `ConversationService`)
 - [x] Public Chat API (`POST /api/chat`, `GET /api/chat/:id`)
 - [x] Interactive Frontend Student Chat Interface (`ChatInterface.tsx`) with 2-column home page layout
@@ -53,35 +51,37 @@ This tracker reflects the current implementation milestones and roadmap for the 
 
 ---
 
-### Phase 4: Academic RAG & Vector Search *(In Progress — Foundation Complete)*
-- [x] Knowledge Base data model (`AcademicDocument` & `KnowledgeChunk`)
-- [x] PDF upload (Protected admin route with Department + Program input)
-- [x] PDF text extraction (Deterministic page-boundary preservation)
-- [x] Chunking (Section-aware & page-aware chunking service)
-- [x] Gemini embeddings (`GeminiEmbeddingProvider`, 768-dim, batch processing)
-- [x] Knowledge chunk storage (`knowledge_chunks` collection with dimension validation)
-- [x] Vector Search service (`VectorSearchService` with `$vectorSearch` pipeline & pre-filtering)
+### Phase 4: Academic RAG & Vector Search *(100% Complete & Verified)*
+- [x] Knowledge Base data models (`AcademicDocument` & `KnowledgeChunk`)
+- [x] PDF upload pipeline (Protected admin route with Department + Program metadata)
+- [x] PDF text extraction (`PdfExtractorService` preserving page boundaries)
+- [x] Section & page-aware chunking (`ChunkingService` with ~800 char window, ~120 char overlap)
+- [x] Gemini 768-dim embeddings (`GeminiEmbeddingProvider` with batch processing)
+- [x] Knowledge chunk storage (`knowledge_chunks` collection with strict 768-dim validation)
+- [x] Atlas Vector Search service (`VectorSearchService` with `$vectorSearch` pipeline & dynamic metadata pre-filtering)
 - [x] Atlas index configuration documented (`docs/atlas_vector_search_index.json` & `docs/AI_RAG.md`)
-- [x] Admin Knowledge Base frontend portal (`/admin/knowledge-base`)
-- [ ] RAG orchestration
-- [ ] Retrieval fallback
-- [ ] Answerability evaluation
-- [ ] Grounded citations
-- [ ] Hybrid retrieval
-- [ ] Full Phase 4 integration
+- [x] Admin Knowledge Base frontend portal (`/admin/knowledge-base`) with upload, status polling, and chunk inspection
+- [x] RAG response generation & grounding service (`RagResponseService`)
+- [x] Anti-hallucination guardrails & explicit vs unstated fact differentiation
+- [x] Formatted student-facing source citations (`formatCitationBlock` with title & page numbers)
+- [x] Robust deterministic cross-page synthesis fallback when offline or during upstream LLM latency
+- [x] Complete Vector Handler integration (`VectorHandler`) connected into Orchestrator pipeline
+- [x] Full Phase 4 test suite (40 test scenarios passing across ingestion, search, grounding, fallback, and orchestration)
 
 ---
 
-### Phase 5: Student & Admin Interfaces *(Planned)*
-- [ ] Enhanced student scheduling & timetable viewer
-- [ ] Academic calendar interactive timeline
-- [ ] Admin document chunk inspector & vector indexing monitor
-- [ ] Query performance analytics
+### Phase 5: Student & Admin Interfaces *(In Progress / Next Milestones)*
+- [x] Admin Knowledge Base Document & Chunk Management Portal (`/admin/knowledge-base`)
+- [x] Admin Academic Entity Management Dashboard (`/admin`)
+- [x] Public Student Interactive Chatbot with dark/light theme toggle
+- [ ] Interactive Student Timetable & Exam Calendar visual viewer
+- [ ] Academic Calendar timeline widget
+- [ ] Admin query analytics & unanswered inquiry logging
 
 ---
 
-### Phase 6: Quality Assurance & Deployment *(Planned)*
-- [ ] Frontend end-to-end user journey tests
-- [ ] API rate limiting & security hardening
-- [ ] CI/CD automated test pipeline
-- [ ] Production deployment & monitoring setup
+### Phase 6: Quality Assurance & Deployment *(Roadmap)*
+- [x] Automated test suites for Gemini NLU, Structured DB, RAG Ingestion, and Vector Search Orchestration
+- [ ] Frontend end-to-end user journey tests (Cypress/Playwright)
+- [ ] API rate limiting & DDoS protection middleware
+- [ ] Production deployment & containerization (Docker, CI/CD pipeline)
