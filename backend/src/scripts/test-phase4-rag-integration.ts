@@ -101,6 +101,38 @@ async function runVectorRAGIntegrationTests() {
     const explicitDocTypeFilters = await vectorHandler.buildFilters({ documentType: 'academic_regulations' } as any, {});
     assert(explicitDocTypeFilters?.documentType === 'academic_regulations', 'Explicitly supplied documentType is correctly preserved in filters');
 
+    // 3e. FIX 1 Verification: Institutional policy intent must NOT inherit conversation department/program/semester context
+    const inheritedContext = { department: validObjectId, program: validObjectId, semester: 5 };
+    const policyWithContext = await vectorHandler.buildFilters({}, inheritedContext, 'attendance_policy');
+    assert(
+      policyWithContext === undefined || (policyWithContext.department === undefined && policyWithContext.program === undefined),
+      'FIX 1: attendance_policy intent does NOT inherit department or program from conversation context'
+    );
+
+    const gradingPolicyWithContext = await vectorHandler.buildFilters({}, inheritedContext, 'grading_policy');
+    assert(
+      gradingPolicyWithContext === undefined || (gradingPolicyWithContext.department === undefined && gradingPolicyWithContext.program === undefined),
+      'FIX 1: grading_policy intent does NOT inherit department or program from conversation context'
+    );
+
+    // 3f. FIX 1 Verification: Explicit current-query department entity IS respected even for institutional policy
+    const explicitPolicyFilters = await vectorHandler.buildFilters({ department: validObjectId }, inheritedContext, 'attendance_policy');
+    assert(
+      explicitPolicyFilters?.department?.toString() === validObjectId,
+      'FIX 1: Explicit current-query department entity is preserved for institutional policy'
+    );
+
+    // 3g. FIX 1 Verification: Cohort-scoped intents (subject_credits, syllabus_breakdown) DO inherit conversation context
+    const cohortFilters = await vectorHandler.buildFilters({}, inheritedContext, 'subject_credits');
+    assert(
+      cohortFilters?.department?.toString() === validObjectId,
+      'FIX 1: Cohort-scoped intent (subject_credits) preserves inherited conversation department'
+    );
+    assert(
+      cohortFilters?.semester === 5,
+      'FIX 1: Cohort-scoped intent (subject_credits) preserves inherited conversation semester'
+    );
+
     // ----------------------------------------------------------------
     // TEST GROUP 4: No-Result Handling (Anti-Hallucination)
     // ----------------------------------------------------------------
@@ -279,27 +311,88 @@ async function runVectorRAGIntegrationTests() {
     assert(fallbackMedicalFee.includes('Page 7'), 'TEST C: Fallback surfaces medical requirements from Page 7');
     assert(fallbackMedicalFee.includes('Page 6'), 'TEST C: Fallback surfaces general condonation fee from Page 6');
 
-    // TEST D: Missing information / Non-hallucination
+    // TEST D: Missing information / Non-hallucination & Anti-Fee Substitution
     const emptyFallback = ragResponseService.formatDeterministicAnswer([], []);
     assert(emptyFallback.includes("couldn't find this information"), 'TEST D: Empty retrieval returns not-found statement without hallucination');
 
-    const unrelatedChunks: any[] = [
+    // TEST E (FIX 2): Passing Grade FAQ Excluded from Attendance Condonation Response
+    const mixedPage28Chunks: any[] = [
       {
-        _id: 'c4',
+        _id: 'c5_att',
         documentId: 'doc1',
-        text: 'Academic calendar 2025-26: Monsoon semester classes commence on August 4, 2025.',
-        chunkIndex: 40,
-        pageNumber: 15,
+        text: 'Attendance Condonation: Students with attendance between 65% and 74.9% may apply for condonation. Application must be submitted 5 working days before examinations.',
+        chunkIndex: 11,
+        pageNumber: 6,
         metadata: mockMeta,
-        score: 0.55,
+        score: 0.88,
+      },
+      {
+        _id: 'c5_mixed',
+        documentId: 'doc1',
+        text: 'FAQ Section:\nQ: How much is the attendance condonation fee?\nA: The ordinary condonation processing fee is Rs. 500 per course (Section 2.3).\nQ: What is the passing grade?\nA: Grade “D”, corresponding to at least 40 marks out of 100, is the minimum passing grade in every course (Section 4.2).',
+        chunkIndex: 70,
+        pageNumber: 28,
+        metadata: mockMeta,
+        score: 0.87,
       },
     ];
-    const unrelatedFallback = ragResponseService.formatDeterministicAnswer(
-      unrelatedChunks,
+
+    const fallbackAttendancePrecise = ragResponseService.formatDeterministicAnswer(
+      mixedPage28Chunks,
       citations,
-      'What is the hostel fee for the 2025-26 academic year?'
+      'What are the rules for attendance condonation?'
     );
-    assert(!unrelatedFallback.includes('hostel fee is Rs.'), 'TEST D: Does not invent hostel fee');
+
+    assert(
+      fallbackAttendancePrecise.includes('65%') && fallbackAttendancePrecise.includes('Rs. 500'),
+      'TEST E (FIX 2): Attendance condonation rules and fees are retained'
+    );
+    assert(
+      !fallbackAttendancePrecise.toLowerCase().includes('passing grade') &&
+      !fallbackAttendancePrecise.includes('Grade “D”') &&
+      !fallbackAttendancePrecise.includes('40 marks'),
+      'TEST E (FIX 2): Unrelated passing grade FAQ is strictly excluded from attendance condonation fallback'
+    );
+
+    // TEST F (FIX 2): Negative Hostel/Mess Query with Unrelated Administrative Fee Chunks
+    const adminFeeChunks: any[] = [
+      {
+        _id: 'c6_transcript',
+        documentId: 'doc1',
+        text: '10.2 Transcript Request: Filled request form; ID card; fee receipt. Processing time 7 working days. Fee Rs. 250 per copy.',
+        chunkIndex: 60,
+        pageNumber: 25,
+        metadata: mockMeta,
+        score: 0.80,
+      },
+      {
+        _id: 'c6_idcard',
+        documentId: 'doc1',
+        text: '10.3 ID Card Replacement: Police/loss report; ID replacement form. Processing time 5 working days. Fee Rs. 200.',
+        chunkIndex: 61,
+        pageNumber: 25,
+        metadata: mockMeta,
+        score: 0.79,
+      },
+    ];
+
+    const fallbackHostelStrict = ragResponseService.formatDeterministicAnswer(
+      adminFeeChunks,
+      citations,
+      'What is the hostel fee, mess fee, laundry fee, and security deposit for the 2025-26 academic year?'
+    );
+
+    assert(
+      fallbackHostelStrict.includes("couldn't find this information"),
+      'TEST F (FIX 2): Missing hostel/mess fees query returns strict not-found statement'
+    );
+    assert(
+      !fallbackHostelStrict.includes('Rs. 250') &&
+      !fallbackHostelStrict.includes('Rs. 200') &&
+      !fallbackHostelStrict.includes('Transcript') &&
+      !fallbackHostelStrict.includes('ID Card'),
+      'TEST F (FIX 2): Does NOT substitute unrelated transcript or ID card fees for hostel/mess query'
+    );
 
     console.log('\n================================================================');
     console.log(`📊 TEST SUMMARY: ${passedCount} PASSED, ${failedCount} FAILED`);

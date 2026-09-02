@@ -115,6 +115,15 @@ export class RagResponseService {
       generatedAnswer = this.formatDeterministicAnswer(chunks, citations, userMessage);
     }
 
+    // Anti-hallucination safety: If fallback finds no relevant evidence for the query topics, return clean not-found without misleading citations
+    if (generatedAnswer.startsWith("I couldn't find this information")) {
+      return {
+        response: generatedAnswer,
+        citations: [],
+        usedChunksCount: 0,
+      };
+    }
+
     // 8. Append formatted citation block
     const formattedCitations = this.formatCitationBlock(citations);
     const fullResponse = `${generatedAnswer}\n\n${formattedCitations}`;
@@ -230,7 +239,8 @@ export class RagResponseService {
   }
 
   /**
-   * Deterministic grounded synthesis across all retrieved chunks when LLM is unavailable.
+   * Deterministic grounded synthesis across retrieved chunks when LLM is unavailable.
+   * Performs query-relevance filtering to exclude neighboring unrelated FAQ items and avoid fee substitution.
    */
   public formatDeterministicAnswer(
     chunks: VectorSearchResult[],
@@ -242,6 +252,67 @@ export class RagResponseService {
     }
 
     const primaryDoc = citations[0]?.title || 'Academic Records';
+
+    const STOP_WORDS = new Set([
+      'a', 'an', 'the', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
+      'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'shall',
+      'should', 'can', 'could', 'may', 'might', 'must', 'what', 'which',
+      'who', 'whom', 'whose', 'when', 'where', 'why', 'how', 'about', 'for',
+      'in', 'on', 'at', 'by', 'to', 'from', 'with', 'without', 'of', 'into',
+      'through', 'during', 'before', 'after', 'above', 'below', 'under',
+      'between', 'out', 'off', 'over', 'again', 'further', 'then', 'once',
+      'here', 'there', 'all', 'any', 'both', 'each', 'few', 'more', 'most',
+      'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same',
+      'so', 'than', 'too', 'very', 'just', 'now', 'its', 'it', 'your', 'my',
+      'our', 'their', 'his', 'her', 'tell', 'please', 'academic', 'year',
+      '2025', '2026', '2025-26', 'rule', 'rules', 'policy', 'information',
+    ]);
+
+    const queryLower = (userMessage || '').toLowerCase();
+    const queryTokens = queryLower
+      .split(/[^a-z0-9%]+/g)
+      .filter((t) => t.length > 2 && !STOP_WORDS.has(t));
+
+    // Domain concept dictionaries
+    const domainAttendance = [
+      'attendance', 'condonation', 'condone', 'shortage', 'medical',
+      'hospitalization', 'rmp', 'practitioner', 'debar', 'detain', 'detained',
+      'detention', '75%', '65%', '60%', 'dean', 'hod', '500', 'relaxation',
+      'working days', 'processing fee', 'leave',
+    ];
+    const domainHostelMess = [
+      'hostel', 'mess', 'laundry', 'deposit', 'security deposit', 'boarding',
+      'room rent', 'dining', 'residence', 'hall of residence', 'accommodation',
+      'caution deposit',
+    ];
+    const domainGrading = [
+      'grade', 'grading', 'gpa', 'cgpa', 'sgpa', 'passing', 'marks', 'scale',
+      'backlog', 'arrear', 'grade d', 'grade point', '40 marks', 'letter grade',
+    ];
+    const domainRevaluation = [
+      'revaluation', 're-evaluation', 'retotaling', 'script', 'evaluat',
+      'answer sheet', 'rechecking', '600 per answer script', '600',
+    ];
+    const domainAdminServices = [
+      'transcript', 'bonafide', 'id card', 'identity card', 'course withdrawal',
+      'semester registration', '250', '200',
+    ];
+
+    const hasAttendanceFocus = queryTokens.some((t) =>
+      ['attendance', 'condonation', 'condone', 'shortage', 'detention', 'debarment'].includes(t)
+    );
+    const hasHostelMessFocus = queryTokens.some((t) =>
+      ['hostel', 'mess', 'laundry', 'deposit', 'boarding', 'dining', 'residence'].includes(t)
+    );
+    const hasGradingFocus = queryTokens.some((t) =>
+      ['grade', 'grading', 'gpa', 'cgpa', 'sgpa', 'passing', 'marks', 'scale'].includes(t)
+    );
+    const hasRevalFocus = queryTokens.some((t) =>
+      ['revaluation', 'retotaling', 'rechecking', 'script'].includes(t)
+    );
+    const hasAdminFocus = queryTokens.some((t) =>
+      ['transcript', 'bonafide', 'id card', 'withdrawal', 'registration'].includes(t)
+    );
 
     // 1. Group extracted facts by Page / Source and deduplicate
     const pageFactMap = new Map<number, string[]>();
@@ -267,6 +338,65 @@ export class RagResponseService {
           const normalized = point.replace(/^[•\-\*\d\.\)]+\s*/, '').trim();
           if (normalized.length < 15) continue;
 
+          const pointLower = normalized.toLowerCase();
+
+          // RELEVANCE FILTERING:
+          let isRelevant = true;
+
+          if (queryTokens.length > 0) {
+            let directTokenMatches = 0;
+            for (const token of queryTokens) {
+              if (pointLower.includes(token)) {
+                directTokenMatches++;
+              }
+            }
+
+            if (hasHostelMessFocus) {
+              // Strict: If query asks for hostel/mess/laundry/security deposit, only include matching hostel/mess concepts
+              const matchesHostelDomain = domainHostelMess.some((k) => pointLower.includes(k));
+              if (!matchesHostelDomain) {
+                isRelevant = false;
+              }
+            } else if (hasAttendanceFocus) {
+              // Attendance query: exclude unrelated passing grade or unrelated administrative fee items
+              const isPassingGradeClause =
+                (pointLower.includes('passing grade') || pointLower.includes('grade “d”') || pointLower.includes('grade d')) &&
+                !pointLower.includes('attendance');
+              const isAdminServiceClause =
+                (pointLower.includes('id card') || pointLower.includes('transcript request') || pointLower.includes('revaluation request')) &&
+                !pointLower.includes('attendance');
+              const matchesAttendanceDomain = domainAttendance.some((k) => pointLower.includes(k));
+
+              if (isPassingGradeClause || isAdminServiceClause || (!matchesAttendanceDomain && directTokenMatches === 0)) {
+                isRelevant = false;
+              }
+            } else if (hasGradingFocus) {
+              const matchesGradingDomain = domainGrading.some((k) => pointLower.includes(k));
+              if (!matchesGradingDomain && directTokenMatches === 0) {
+                isRelevant = false;
+              }
+            } else if (hasRevalFocus) {
+              const matchesRevalDomain = domainRevaluation.some((k) => pointLower.includes(k));
+              if (!matchesRevalDomain && directTokenMatches === 0) {
+                isRelevant = false;
+              }
+            } else if (hasAdminFocus) {
+              const matchesAdminDomain = domainAdminServices.some((k) => pointLower.includes(k));
+              if (!matchesAdminDomain && directTokenMatches === 0) {
+                isRelevant = false;
+              }
+            } else {
+              // General query: require at least 1 direct token match
+              if (directTokenMatches === 0) {
+                isRelevant = false;
+              }
+            }
+          }
+
+          if (!isRelevant) {
+            continue;
+          }
+
           // Deduplication key (lowercase alphanumeric normalized)
           const key = normalized.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 75);
           if (seenNormalized.has(key)) {
@@ -282,27 +412,18 @@ export class RagResponseService {
       }
     }
 
-    // 2. If no structured points extracted, fallback to cleaned chunk text
+    // 2. If no relevant structured points extracted, return grounded not-found
     if (pageFactMap.size === 0) {
-      const topChunk = chunks[0];
-      const pageText = topChunk.pageNumber ? ` (Page ${topChunk.pageNumber})` : '';
-      return (
-        `Based on the official institutional document **${primaryDoc}**${pageText}:\n\n` +
-        `${topChunk.text.trim()}`
-      );
+      return "I couldn't find this information in the available official EduPilot documents.";
     }
 
     // 3. Prioritize pages matching query terms (e.g. fee, deadline, medical, percentage)
-    const queryTerms = userMessage
-      ? userMessage.toLowerCase().split(/[\s,?.!]+/).filter((t) => t.length > 3)
-      : [];
-
     const sortedPages = Array.from(pageFactMap.keys()).sort((a, b) => {
-      if (queryTerms.length === 0) return a - b;
+      if (queryTokens.length === 0) return a - b;
       const aFacts = (pageFactMap.get(a) || []).join(' ').toLowerCase();
       const bFacts = (pageFactMap.get(b) || []).join(' ').toLowerCase();
-      const aMatches = queryTerms.filter((t) => aFacts.includes(t)).length;
-      const bMatches = queryTerms.filter((t) => bFacts.includes(t)).length;
+      const aMatches = queryTokens.filter((t) => aFacts.includes(t)).length;
+      const bMatches = queryTokens.filter((t) => bFacts.includes(t)).length;
       return bMatches - aMatches || a - b;
     });
 

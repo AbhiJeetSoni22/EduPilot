@@ -110,8 +110,19 @@ export class VectorHandler {
     const filters: VectorSearchFilters = {};
     let hasFilter = false;
 
-    // 1. Department Filter
-    const rawDept = entities.department || context.department;
+    // Institutional policy intents are applicable across the entire institution.
+    // They must NOT inherit conversation-level cohort filters (department/program/semester),
+    // unless explicitly specified by the user in the current query entities.
+    const INSTITUTIONAL_POLICY_INTENTS = new Set([
+      'attendance_policy',
+      'grading_policy',
+      'academic_regulation',
+      'academic_policy',
+    ]);
+    const isInstitutionalPolicy = Boolean(intent && INSTITUTIONAL_POLICY_INTENTS.has(intent));
+
+    // 1. Department Filter (explicit query entity always respected; context only for cohort-scoped intents)
+    const rawDept = isInstitutionalPolicy ? entities.department : (entities.department || context.department);
     if (rawDept && typeof rawDept === 'string' && rawDept.trim()) {
       const cleanDept = rawDept.trim();
       if (mongoose.Types.ObjectId.isValid(cleanDept)) {
@@ -135,8 +146,8 @@ export class VectorHandler {
       }
     }
 
-    // 2. Program Filter
-    const rawProg = entities.program || context.program;
+    // 2. Program Filter (explicit query entity always respected; context only for cohort-scoped intents)
+    const rawProg = isInstitutionalPolicy ? entities.program : (entities.program || context.program);
     if (rawProg && typeof rawProg === 'string' && rawProg.trim()) {
       const cleanProg = rawProg.trim();
       if (mongoose.Types.ObjectId.isValid(cleanProg)) {
@@ -160,8 +171,10 @@ export class VectorHandler {
       }
     }
 
-    // 3. Semester Filter
-    const rawSem = entities.semester !== undefined && entities.semester !== null ? entities.semester : context.semester;
+    // 3. Semester Filter (explicit query entity always respected; context only for cohort-scoped intents)
+    const rawSem = isInstitutionalPolicy
+      ? entities.semester
+      : (entities.semester !== undefined && entities.semester !== null ? entities.semester : context.semester);
     if (rawSem !== undefined && rawSem !== null) {
       const semNum = Number(rawSem);
       if (!isNaN(semNum) && semNum >= 1 && semNum <= 12) {
