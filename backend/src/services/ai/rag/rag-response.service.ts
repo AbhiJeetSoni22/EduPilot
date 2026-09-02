@@ -93,11 +93,13 @@ export class RagResponseService {
     if (geminiService.isConfigured()) {
       try {
         const aiResponse = await geminiService.generateContent(prompt, {
+          model: geminiService.getRagGenerationModel(),
+          operation: 'rag-response-generation',
           systemInstruction,
           responseMimeType: 'text/plain',
           temperature: 0.1,
           maxOutputTokens: 4096,
-          timeoutMs: 20000,
+          timeoutMs: geminiService.getRagTimeoutMs(),
         });
 
         if (aiResponse && aiResponse.trim()) {

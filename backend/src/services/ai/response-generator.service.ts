@@ -25,10 +25,13 @@ export class ResponseGeneratorService {
         const prompt = `VERIFIED INSTITUTIONAL DATA:\n${retrievedData.summaryText}\n\nSTUDENT QUESTION:\n${userMessage}\n\nProvide a helpful, well-structured, bulleted answer using ONLY the verified facts above.`;
 
         const aiResponse = await geminiService.generateContent(prompt, {
+          model: geminiService.getRagGenerationModel(),
+          operation: 'structured-grounded-response',
           systemInstruction: systemTone,
           responseMimeType: 'text/plain',
           temperature: 0.1,
           maxOutputTokens: 1024,
+          timeoutMs: geminiService.getRagTimeoutMs(),
         });
 
         if (aiResponse && aiResponse.trim()) {

@@ -94,8 +94,15 @@ async function testGeminiAPI(): Promise<boolean> {
     console.log(`✅ Gemini API Key Authenticated!`);
     console.log(`   Available models: ${availableModels.join(', ')}`);
 
-    // Prioritize working standard models: gemini-3.6-flash, gemini-3.5-flash, gemini-flash-latest, etc.
-    const priorityModels = ['gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest', ...availableModels];
+    // Prioritize configured models: gemini-3.6-flash, gemini-3.7-flash, gemini-2.5-flash
+    const priorityModels = [
+      process.env.QUERY_ANALYZER_MODEL || 'gemini-3.6-flash',
+      process.env.RAG_GENERATION_MODEL || 'gemini-3.7-flash',
+      'gemini-3.6-flash',
+      'gemini-3.7-flash',
+      'gemini-2.5-flash',
+      ...availableModels,
+    ];
     const targetModel = priorityModels.find(m => availableModels.includes(m)) || availableModels[0];
 
     console.log(`   Attempting generation with model: "${targetModel}"...`);

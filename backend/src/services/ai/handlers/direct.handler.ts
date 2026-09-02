@@ -40,10 +40,13 @@ export class DirectHandler {
         const aiAnswer = await geminiService.generateContent(
           `Provide a clear, authoritative, and concise 2-3 paragraph academic explanation for the following student question:\n"${userMessage}"`,
           {
+            model: geminiService.getQueryAnalyzerModel(),
+            operation: 'direct-concept-explanation',
             systemInstruction:
               'You are EduPilot, an educational AI companion. Explain standard academic computer science/engineering concepts clearly and concisely with key bullet points. Do not invent any university-specific exam dates or administrative policies.',
             responseMimeType: 'text/plain',
             temperature: 0.2,
+            timeoutMs: geminiService.getQueryTimeoutMs(),
           }
         );
         return { response: aiAnswer };

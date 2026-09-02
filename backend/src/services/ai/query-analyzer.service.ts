@@ -22,9 +22,12 @@ export class QueryAnalyzerService {
       try {
         const userPrompt = buildQueryAnalysisUserPrompt(trimmedMessage, existingContext);
         const rawJsonText = await geminiService.generateContent(userPrompt, {
+          model: geminiService.getQueryAnalyzerModel(),
+          operation: 'query-analysis',
           systemInstruction: QUERY_ANALYSIS_SYSTEM_INSTRUCTION,
           responseMimeType: 'application/json',
           temperature: 0.05,
+          timeoutMs: geminiService.getQueryTimeoutMs(),
         });
 
         // Strip any accidental markdown fences
