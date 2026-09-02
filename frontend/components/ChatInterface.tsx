@@ -141,8 +141,14 @@ export function ChatInterface() {
     <div className="chat-container card">
       <div className="chat-header">
         <div className="chat-header-info">
-          <span className="chat-status-dot online"></span>
-          <span className="chat-title">EduPilot Academic Chat</span>
+          <div className="chat-bot-avatar">🤖</div>
+          <div className="chat-header-text">
+            <span className="chat-title">EduPilot Assistant</span>
+            <div className="chat-online-badge">
+              <span className="chat-status-dot online"></span>
+              <span className="chat-status-label">Active • Ready for Queries</span>
+            </div>
+          </div>
         </div>
         {queryContext.department && (
           <div className="chat-context-badge">
@@ -168,7 +174,7 @@ export function ChatInterface() {
               )}
               {msg.status === 'retrieval_unavailable' && (
                 <div className="message-future-tag">
-                  📚 Phase 4 Knowledge Search Required
+                  📚 Knowledge Search Triggered
                 </div>
               )}
               <span className="message-time">
@@ -182,7 +188,7 @@ export function ChatInterface() {
           <div className="chat-message assistant">
             <div className="message-avatar">🤖</div>
             <div className="message-bubble loading">
-              <span className="loading-dots">Thinking...</span>
+              <span className="loading-dots">Synthesizing authoritative response...</span>
             </div>
           </div>
         )}
@@ -190,7 +196,7 @@ export function ChatInterface() {
 
       {messages.length <= 2 && (
         <div className="chat-suggestions">
-          <span className="suggestions-label">Try asking:</span>
+          <span className="suggestions-label">⚡ Frequently Asked by Students:</span>
           <div className="suggestions-list">
             {suggestionPrompts.map((prompt, idx) => (
               <button
@@ -199,7 +205,8 @@ export function ChatInterface() {
                 onClick={() => handleSend(prompt)}
                 disabled={isLoading}
               >
-                {prompt}
+                <span>{prompt}</span>
+                <span className="chip-arrow">↗</span>
               </button>
             ))}
           </div>
@@ -208,7 +215,7 @@ export function ChatInterface() {
 
       {error && (
         <div className="chat-error-banner">
-          <span>{error}</span>
+          <span>⚠️ {error}</span>
           <button onClick={() => setError(null)}>✕</button>
         </div>
       )}
@@ -217,18 +224,23 @@ export function ChatInterface() {
         <input
           type="text"
           className="form-input chat-input"
-          placeholder="Ask about syllabus, credits, exams, regulations..."
+          placeholder="Ask about DBMS syllabus, exam shifts, attendance rules..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={isLoading}
         />
         <button
-          className="btn btn-primary chat-send-btn"
+          className="btn-primary chat-send-btn"
           onClick={() => handleSend()}
           disabled={!input.trim() || isLoading}
+          title="Send Query"
         >
-          {isLoading ? '...' : 'Send'}
+          {isLoading ? (
+            <span className="send-spinner" />
+          ) : (
+            <span>Send →</span>
+          )}
         </button>
       </div>
     </div>

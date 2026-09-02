@@ -36,11 +36,14 @@ export function HealthCheckWidget() {
     <div className="health-card">
       <div className="health-card-header">
         <div className="health-card-title">
-          <span>Backend System Status</span>
+          <span className="health-pulse-indicator" />
+          <span>System & Engine Status</span>
           {health && (
             <span
-              className={`status-dot ${health.status === 'ok' ? 'ok' : health.status === 'degraded' ? 'degraded' : 'error'}`}
-            />
+              className={`status-pill ${health.status === 'ok' ? 'ok' : health.status === 'degraded' ? 'degraded' : 'error'}`}
+            >
+              {health.status === 'ok' ? 'All Systems Operational' : health.status === 'degraded' ? 'Degraded (Atlas Offline)' : 'Offline'}
+            </span>
           )}
         </div>
         <button
@@ -49,43 +52,50 @@ export function HealthCheckWidget() {
           className="refresh-btn"
           title="Re-fetch backend health"
         >
-          {loading ? 'Checking...' : 'Ping Backend'}
+          {loading ? (
+            <span className="btn-refresh-loading">Pinging...</span>
+          ) : (
+            <span>🔄 Ping</span>
+          )}
         </button>
       </div>
 
       <div className="health-grid">
         <div className="health-stat">
-          <div className="health-stat-label">API Service</div>
+          <div className="health-stat-label">API Gateway</div>
           <div className="health-stat-value">
-            {error ? 'Unreachable' : health?.status?.toUpperCase() || '...'}
+            <span className={`status-dot ${error ? 'error' : 'ok'}`} />
+            <span>{error ? 'Unreachable' : health?.status?.toUpperCase() || 'ONLINE'}</span>
           </div>
         </div>
 
         <div className="health-stat">
-          <div className="health-stat-label">Database</div>
+          <div className="health-stat-label">Database (Atlas)</div>
           <div className="health-stat-value">
-            {health?.database?.status ? health.database.status : error ? 'Offline' : '...'}
+            <span className={`status-dot ${health?.database?.status === 'connected' ? 'ok' : health?.database?.status === 'connecting' ? 'degraded' : 'error'}`} />
+            <span>{health?.database?.status ? health.database.status : error ? 'Offline' : 'Connected'}</span>
           </div>
         </div>
 
         <div className="health-stat">
-          <div className="health-stat-label">Uptime</div>
-          <div className="health-stat-value">
+          <div className="health-stat-label">Server Uptime</div>
+          <div className="health-stat-value uptime-mono">
             {health ? formatUptime(health.uptime) : '--'}
           </div>
         </div>
 
         <div className="health-stat">
-          <div className="health-stat-label">Last Ping</div>
-          <div className="health-stat-value">
+          <div className="health-stat-label">Telemetry Synced</div>
+          <div className="health-stat-value sync-time">
             {lastChecked || '--'}
           </div>
         </div>
       </div>
 
       {error && (
-        <div style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--accent-rose)', fontFamily: 'var(--font-mono)' }}>
-          {error} (Make sure backend is running on port 5000)
+        <div className="health-error-box">
+          <span>⚠️ {error}</span>
+          <span className="health-port-tip">Confirm backend running at http://localhost:5000</span>
         </div>
       )}
     </div>
