@@ -31,10 +31,10 @@ export function Footer() {
                 <Link href="/login" className="footer-nav-item">Staff Portal Login</Link>
               </li>
               <li>
-                <Link href="/admin/bulk-import" className="footer-nav-item">Bulk Data Ingest</Link>
+                <Link href="/admin/knowledge-base" className="footer-nav-item">Knowledge Base</Link>
               </li>
               <li>
-                <Link href="/admin/subjects" className="footer-nav-item">Curriculum Management</Link>
+                <Link href="/admin/exams" className="footer-nav-item">Exam Timetables</Link>
               </li>
             </ul>
           </div>

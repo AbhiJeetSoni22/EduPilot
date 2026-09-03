@@ -6,53 +6,22 @@ import { academicService } from '@/services/academic.service';
 
 export default function AdminOverviewPage() {
   const [stats, setStats] = useState({
-    subjects: 0,
     exams: 0,
-    assignments: 0,
-    calendarEvents: 0,
-    regulations: 0,
     documents: 0,
-    users: 0,
-    departments: 0,
-    programs: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function loadStats() {
       try {
-        const [
-          subjRes,
-          examRes,
-          assignRes,
-          calRes,
-          regRes,
-          docRes,
-          userRes,
-          deptRes,
-          progRes,
-        ] = await Promise.all([
-          academicService.getSubjects(),
+        const [examRes, docRes] = await Promise.all([
           academicService.getExams(),
-          academicService.getAssignments(),
-          academicService.getCalendarEvents(),
-          academicService.getRegulations(),
           academicService.getDocuments(),
-          academicService.getUsers(),
-          academicService.getDepartments(),
-          academicService.getPrograms(),
         ]);
 
         setStats({
-          subjects: subjRes.data?.length || 0,
           exams: examRes.data?.length || 0,
-          assignments: assignRes.data?.length || 0,
-          calendarEvents: calRes.data?.length || 0,
-          regulations: regRes.data?.length || 0,
           documents: docRes.data?.length || 0,
-          users: userRes.data?.length || 0,
-          departments: deptRes.data?.length || 0,
-          programs: progRes.data?.length || 0,
         });
       } catch (err) {
         console.error('Error fetching dashboard statistics:', err);
@@ -65,14 +34,8 @@ export default function AdminOverviewPage() {
   }, []);
 
   const statCards = [
-    { title: 'Subjects / Courses', count: stats.subjects, icon: '📚', link: '/admin/subjects', color: 'indigo' },
     { title: 'Scheduled Exams', count: stats.exams, icon: '📝', link: '/admin/exams', color: 'rose' },
-    { title: 'Active Assignments', count: stats.assignments, icon: '📋', link: '/admin/assignments', color: 'amber' },
-    { title: 'Calendar Events', count: stats.calendarEvents, icon: '🗓️', link: '/admin/academic-calendar', color: 'cyan' },
-    { title: 'Academic Regulations', count: stats.regulations, icon: '⚖️', link: '/admin/regulations', color: 'emerald' },
     { title: 'Knowledge Base Docs', count: stats.documents, icon: '📁', link: '/admin/knowledge-base', color: 'violet', badge: 'RAG Foundation' },
-    { title: 'Registered Users', count: stats.users, icon: '👥', link: '/admin/users', color: 'blue' },
-    { title: 'Academic Programs', count: stats.programs, icon: '🎓', link: '/admin/subjects', color: 'teal' },
   ];
 
   return (
@@ -81,15 +44,15 @@ export default function AdminOverviewPage() {
         <div>
           <h1 className="portal-page-title">Academic Management Overview</h1>
           <p className="portal-page-subtitle">
-            Authoritative source-of-truth hub for university curricula, exam schedules, and institutional policies.
+            Authoritative source-of-truth hub for university examinations and knowledge base documents.
           </p>
         </div>
         <div className="header-actions-group">
-          <Link href="/admin/bulk-import" className="btn-secondary">
-            <span>⚡ Bulk Import</span>
+          <Link href="/admin/exams" className="btn-secondary">
+            <span>📝 Schedule Exam</span>
           </Link>
-          <Link href="/admin/subjects" className="btn-primary">
-            <span>+ Add Subject</span>
+          <Link href="/admin/knowledge-base" className="btn-primary">
+            <span>+ Upload Document</span>
           </Link>
         </div>
       </div>
@@ -124,18 +87,18 @@ export default function AdminOverviewPage() {
             <div className="layer-header">
               <span className="layer-icon">🗄️</span>
               <div>
-                <h3 className="layer-name">1. Structured Academic Data</h3>
+                <h3 className="layer-name">1. Structured Examination Data</h3>
                 <span className="layer-type">Direct MongoDB Queries</span>
               </div>
             </div>
             <p className="layer-desc">
-              Subjects, exam timetables, assignment deadlines, and calendar events are managed with precise relational schemas. Future Gemini queries will retrieve these via structured database lookups.
+              Exam schedules, shift timings, venues, and assessment guidelines are managed with precise relational schemas. Future Gemini queries will retrieve these via structured database lookups.
             </p>
             <div className="layer-tags">
-              <span className="layer-tag">Subjects</span>
               <span className="layer-tag">Exams</span>
-              <span className="layer-tag">Deadlines</span>
-              <span className="layer-tag">Calendar</span>
+              <span className="layer-tag">Schedules</span>
+              <span className="layer-tag">Venues</span>
+              <span className="layer-tag">Timetables</span>
             </div>
           </div>
 
@@ -164,14 +127,6 @@ export default function AdminOverviewPage() {
       <div className="portal-quick-actions-section">
         <h2 className="section-heading">Quick Actions & Workflows</h2>
         <div className="quick-actions-grid">
-          <Link href="/admin/bulk-import" className="quick-action-card">
-            <div className="qa-icon">⚡</div>
-            <div className="qa-info">
-              <h3 className="qa-title">Bulk Import CSV / JSON</h3>
-              <p className="qa-desc">Upload, validate with interactive preview, and batch-insert hundreds of academic records safely.</p>
-            </div>
-          </Link>
-
           <Link href="/admin/exams" className="quick-action-card">
             <div className="qa-icon">📝</div>
             <div className="qa-info">
@@ -187,16 +142,9 @@ export default function AdminOverviewPage() {
               <p className="qa-desc">Register institutional PDFs and policy guidelines for the upcoming RAG pipeline.</p>
             </div>
           </Link>
-
-          <Link href="/admin/regulations" className="quick-action-card">
-            <div className="qa-icon">⚖️</div>
-            <div className="qa-info">
-              <h3 className="qa-title">Maintain Institutional Policies</h3>
-              <p className="qa-desc">Configure attendance requirements, GPA formulas, and academic integrity regulations.</p>
-            </div>
-          </Link>
         </div>
       </div>
     </div>
   );
 }
+

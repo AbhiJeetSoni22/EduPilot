@@ -8,14 +8,8 @@ import { useAuth } from '@/context/AuthContext';
 
 const NAV_ITEMS = [
   { name: 'Overview', path: '/admin', icon: '📊' },
-  { name: 'Subjects', path: '/admin/subjects', icon: '📚' },
   { name: 'Exams', path: '/admin/exams', icon: '📝' },
-  { name: 'Assignments', path: '/admin/assignments', icon: '📋' },
-  { name: 'Academic Calendar', path: '/admin/academic-calendar', icon: '🗓️' },
-  { name: 'Regulations', path: '/admin/regulations', icon: '⚖️' },
   { name: 'Knowledge Base', path: '/admin/knowledge-base', icon: '📁', badge: 'RAG Ready' },
-  { name: 'Bulk Import', path: '/admin/bulk-import', icon: '⚡' },
-  { name: 'User Management', path: '/admin/users', icon: '👥' },
 ];
 
 export default function AdminPortalLayout({
@@ -105,9 +99,9 @@ export default function AdminPortalLayout({
             </div>
             <div className="top-bar-right">
               <span className="top-bar-academic-year">Academic Year: 2025-26</span>
-              <Link href="/admin/bulk-import" className="btn-quick-import">
-                <span>⚡</span>
-                <span>Bulk Import</span>
+              <Link href="/admin/knowledge-base" className="btn-quick-import">
+                <span>📁</span>
+                <span>Knowledge Base</span>
               </Link>
             </div>
           </div>
