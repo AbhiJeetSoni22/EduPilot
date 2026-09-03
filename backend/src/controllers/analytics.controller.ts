@@ -4,7 +4,7 @@ import { sendSuccess, sendError } from '../utils/response';
 
 export async function getQueryAnalytics(_req: Request, res: Response): Promise<void> {
   try {
-    const conversations = await Conversation.find({}).select('messages lastActiveAt createdAt').lean();
+    const conversations = await Conversation.find({}).select('conversationId messages').lean();
     const intentCounts: Record<string, number> = {};
     const strategyCounts: Record<string, number> = {};
     const unanswered: Array<{ conversationId: string; question: string; intent: string; timestamp: Date }> = [];
@@ -15,17 +15,19 @@ export async function getQueryAnalytics(_req: Request, res: Response): Promise<v
     for (const conversation of conversations) {
       const messages = conversation.messages || [];
       for (let i = 0; i < messages.length; i += 1) {
-        const message = messages[i];
-        if (message.role !== 'user' || !message.queryAnalysis) continue;
+        const assistant = messages[i];
+        if (assistant.role !== 'assistant' || !assistant.queryAnalysis) continue;
+        const userMessage = messages[i - 1];
+        if (!userMessage || userMessage.role !== 'user') continue;
+
         totalQueries += 1;
-        const analysis = message.queryAnalysis as { intent?: string; retrievalStrategy?: string };
+        const analysis = assistant.queryAnalysis as { intent?: string; retrievalStrategy?: string };
         const intent = analysis.intent || 'unknown';
         const strategy = analysis.retrievalStrategy || 'unknown';
         intentCounts[intent] = (intentCounts[intent] || 0) + 1;
         strategyCounts[strategy] = (strategyCounts[strategy] || 0) + 1;
 
-        const nextAssistant = messages[i + 1];
-        const answer = nextAssistant?.role === 'assistant' ? nextAssistant.content : '';
+        const answer = assistant.content || '';
         const isClarification = strategy === 'clarification' || intent === 'ambiguous' || intent === 'unknown';
         const isUnanswered = !answer || /couldn't find|not found|unable to find|don't have enough information|no verified/i.test(answer);
         if (isClarification) clarificationQueries += 1;
@@ -33,19 +35,15 @@ export async function getQueryAnalytics(_req: Request, res: Response): Promise<v
         if (isUnanswered && !isClarification && unanswered.length < 50) {
           unanswered.push({
             conversationId: conversation.conversationId,
-            question: message.content,
+            question: userMessage.content,
             intent,
-            timestamp: message.timestamp,
+            timestamp: userMessage.timestamp,
           });
         }
       }
     }
 
-    const topIntents = Object.entries(intentCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([intent, count]) => ({ intent, count }));
-
+    const topIntents = Object.entries(intentCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([intent, count]) => ({ intent, count }));
     sendSuccess(res, {
       totalQueries,
       answeredQueries,
