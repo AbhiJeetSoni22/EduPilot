@@ -13,6 +13,5 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=build /app/.next ./.next
-COPY --from=build /app/public ./public
 EXPOSE 3004
 CMD ["npm", "start"]
