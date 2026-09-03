@@ -1,87 +1,44 @@
 # Development Status Tracker — Exam & Academic Assistant (EduPilot)
 
-This tracker reflects the current implementation milestones and roadmap for the **Exam & Academic Assistant (EduPilot)** project.
-
----
-
 ## Current Roadmap & Status
 
 ### Phase 1: Project Initialization & Foundation *(100% Complete & Verified)*
-- [x] Repository structure created
-- [x] Frontend initialized (Next.js 15, React 19, TypeScript)
-- [x] Backend initialized (Express.js, TypeScript)
-- [x] MongoDB configuration prepared (Mongoose connection lifecycle)
-- [x] Environment configuration prepared
-- [x] Documentation structure created
-
----
+- [x] Repository structure, Next.js frontend, Express backend, MongoDB configuration, environment configuration, documentation
 
 ### Phase 2: Structured Academic Data & Administration *(100% Complete & Verified)*
-- [x] Academic data models (Departments, Programs, Subjects, Exams, Assignments, Calendar Events, Regulations, Documents)
-- [x] Public read-only REST APIs for curriculum, exam schedules, and policy data
-- [x] Admin authentication & session management (JWT / bcrypt)
-- [x] Admin authorization (`requireRole('admin')`)
-- [x] Protected management operations (CRUD mutations, Document uploads, Bulk import)
-- [x] Bulk CSV/JSON data import with validation pipeline and preview
-- [x] Database seeding scripts with comprehensive sample academic curriculum
-- [x] Public student/chat access (Zero login/registration barriers for general academic queries)
-- [x] Student authentication removed from MVP
-- [x] Query-Context approach defined and documented
-
----
+- [x] Academic models, public read APIs, admin JWT/bcrypt authentication and authorization
+- [x] Protected CRUD, PDF document management, bulk CSV/JSON validation/import, seed data
+- [x] Public student access with Query Context and no mandatory student login
 
 ### Phase 3: Conversational AI & Gemini Integration *(100% Complete & Verified)*
-- [x] Isolated Gemini AI Service (`GeminiService`) with dynamic model selection and timeout protection
-- [x] Strongly typed Query Analysis schema & validation (`validateAndNormalizeQueryAnalysis`)
-- [x] Query Analyzer service (`QueryAnalyzerService`) with context resolution & missing-context detection
-- [x] Dedicated Academic Services (`SubjectService`, `ExamService`, `AssignmentService`, `AcademicCalendarService`, `RegulationService`) with department/program/semester filtering
-- [x] Parameter Validator & Sanitizer (`ParameterValidator`) preventing query injection
-- [x] Zero-hallucination Grounded Response Generator (`ResponseGeneratorService`)
-- [x] Deterministic multi-turn context clarification continuation (pending intent preserved without synthetic queries)
-- [x] Context merging rules (safe updates without null/undefined overwrites)
-- [x] Strategy handlers:
-  - [x] `DirectHandler` (concept definitions, greetings, capabilities)
-  - [x] `StructuredHandler` (curriculum credits, subjects offered, exam timetables, assignment deadlines, calendar milestones)
-  - [x] `ClarificationHandler` (context-soliciting interactive prompts)
-- [x] Conversation session persistence (`Conversation` Mongoose model & `ConversationService`)
-- [x] Public Chat API (`POST /api/chat`, `GET /api/chat/:id`)
-- [x] Interactive Frontend Student Chat Interface (`ChatInterface.tsx`) with 2-column home page layout
-- [x] Comprehensive 16-case end-to-end integration test suite (`npm run test:integration`)
-- [x] Clean architecture without development-only DNS hacks in application code
-
----
+- [x] Gemini service, typed query analysis, context resolution, parameter sanitization
+- [x] Grounded response generation, clarification loops, persistent conversations, strategy handlers
+- [x] Public `/api/chat` API and interactive student chat
+- [x] Phase 3 AI + integration regression suites
 
 ### Phase 4: Academic RAG & Vector Search *(100% Complete & Verified)*
-- [x] Knowledge Base data models (`AcademicDocument` & `KnowledgeChunk`)
-- [x] PDF upload pipeline (Protected admin route with Department + Program metadata)
-- [x] PDF text extraction (`PdfExtractorService` preserving page boundaries)
-- [x] Section & page-aware chunking (`ChunkingService` with ~800 char window, ~120 char overlap)
-- [x] Gemini 768-dim embeddings (`GeminiEmbeddingProvider` with batch processing)
-- [x] Knowledge chunk storage (`knowledge_chunks` collection with strict 768-dim validation)
-- [x] Atlas Vector Search service (`VectorSearchService` with `$vectorSearch` pipeline & dynamic metadata pre-filtering)
-- [x] Atlas index configuration documented (`docs/atlas_vector_search_index.json` & `docs/AI_RAG.md`)
-- [x] Admin Knowledge Base frontend portal (`/admin/knowledge-base`) with upload, status polling, and chunk inspection
-- [x] RAG response generation & grounding service (`RagResponseService`)
-- [x] Anti-hallucination guardrails & explicit vs unstated fact differentiation
-- [x] Formatted student-facing source citations (`formatCitationBlock` with title & page numbers)
-- [x] Robust deterministic cross-page synthesis fallback when offline or during upstream LLM latency
-- [x] Complete Vector Handler integration (`VectorHandler`) connected into Orchestrator pipeline
-- [x] Full Phase 4 test suite (40 test scenarios passing across ingestion, search, grounding, fallback, and orchestration)
+- [x] PDF ingestion, page-aware extraction/chunking, Gemini 768-dim embeddings
+- [x] MongoDB Atlas Vector Search with metadata filtering
+- [x] Grounded RAG synthesis, page citations, deterministic fallback, anti-hallucination guardrails
+- [x] P0/P1 metadata isolation and fallback precision fixes
+- [x] Conversational follow-up subject/course-code resolution
+- [x] 29 ingestion + 48 integration RAG tests passing and Gemini reliability suite passing
 
----
-
-### Phase 5: Student & Admin Interfaces *(In Progress / Next Milestones)*
-- [x] Admin Knowledge Base Document & Chunk Management Portal (`/admin/knowledge-base`)
-- [x] Admin Academic Entity Management Dashboard (`/admin`)
+### Phase 5: Student & Admin Interfaces *(100% Complete)*
+- [x] Admin Knowledge Base Document & Chunk Management Portal
+- [x] Admin Academic Entity Management Dashboard
 - [x] Public Student Interactive Chatbot with dark/light theme toggle
-- [ ] Interactive Student Timetable & Exam Calendar visual viewer
-- [ ] Academic Calendar timeline widget
-- [ ] Admin query analytics & unanswered inquiry logging
+- [x] Interactive Student Exam Timetable viewer (`/timetable`)
+- [x] Academic Calendar timeline/filter viewer (`/calendar`)
+- [x] Admin Query Analytics dashboard (`/admin/analytics`)
+- [x] Analytics API for intent, retrieval strategy, answer rate, clarification rate, and unanswered inquiries
 
----
-
-### Phase 6: Quality Assurance & Deployment *(Roadmap)*
-- [x] Automated test suites for Gemini NLU, Structured DB, RAG Ingestion, and Vector Search Orchestration
-- [ ] Frontend end-to-end user journey tests (Cypress/Playwright)
-- [ ] API rate limiting & DDoS protection middleware
-- [ ] Production deployment & containerization (Docker, CI/CD pipeline)
+### Phase 6: Quality Assurance & Deployment *(In Progress)*
+- [x] Automated backend AI, structured-data, RAG, vector-search, and reliability suites
+- [x] API request rate limiting and payload-size protection
+- [x] Production backend/frontend Dockerfiles
+- [x] Docker Compose production-style local stack
+- [x] GitHub Actions CI for backend and frontend builds
+- [ ] Browser E2E tests with Playwright/Cypress
+- [ ] External reverse-proxy/WAF/CDN DDoS controls and production secrets/observability setup
+- [ ] Actual cloud deployment and domain/TLS configuration
