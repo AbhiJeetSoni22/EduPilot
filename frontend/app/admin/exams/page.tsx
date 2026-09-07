@@ -175,7 +175,7 @@ export default function AdminExamsPage() {
           Loading examination schedules...
         </div>
       ) : filteredExams.length === 0 ? (
-        <div style={{ textAlig: 'center', padding: '3rem', background: 'var(--bg-secondary, #1e293b)', borderRadius: '12px', border: '1px solid var(--border-color, #334155)', textAlign: 'center' }}>
+        <div style={{ padding: '3rem', background: 'var(--bg-secondary, #1e293b)', borderRadius: '12px', border: '1px solid var(--border-color, #334155)', textAlign: 'center' }}>
           <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📝</div>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary, #f8fafc)', marginBottom: '0.25rem' }}>No Examinations Scheduled</h3>
           <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.9rem' }}>
@@ -194,7 +194,7 @@ export default function AdminExamsPage() {
                 padding: '1.25rem',
                 display: 'flex',
                 flexDirection: 'column',
-                justify: 'space-between',
+                justifyContent: 'space-between',
                 gap: '1rem',
               }}
             >
